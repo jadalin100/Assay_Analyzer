@@ -1,0 +1,315 @@
+# =============================================================================
+# visualization.py — All plots for the assay analyzer pipeline.
+# =============================================================================
+
+import os
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import config
+
+
+def _save(fig, path: str):
+    fig.savefig(path, dpi=config.PLOT_DPI, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {path}")
+
+
+def plot_rgb_traces(results: list[dict], out_dir: str):
+    """RGB channel values over time, one subplot per sample."""
+    n = len(results)
+    cols = min(3, n)
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows), squeeze=False)
+    fig.suptitle("RGB Traces Over Time", fontsize=14, fontweight="bold")
+
+    for idx, r in enumerate(results):
+        ax = axes[idx // cols][idx % cols]
+        t = r["rgb_data"]["times"]
+        ax.plot(t, r["rgb_data"]["R"], "r-o", ms=3, label="R")
+        ax.plot(t, r["rgb_data"]["G"], "g-o", ms=3, label="G")
+        ax.plot(t, r["rgb_data"]["B"], "b-o", ms=3, label="B")
+        ax.set_title(r["name"], fontsize=9)
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Mean pixel value")
+        ax.legend(fontsize=7)
+        ax.set_ylim(0, 270)
+
+    for idx in range(n, rows * cols):
+        axes[idx // cols][idx % cols].axis("off")
+
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "rgb_traces.png"))
+
+
+def plot_ratios(results: list[dict], out_dir: str):
+    """R/G and R/B ratios over time."""
+    n = len(results)
+    cols = min(3, n)
+    rows = (n + cols - 1) // cols
+
+    for ratio_key, title, fname in [
+        ("RG_ratio", "R/G Ratio", "rg_ratio.png"),
+        ("RB_ratio", "R/B Ratio", "rb_ratio.png"),
+        ("GB_ratio", "G/B Ratio", "gb_ratio.png"),
+    ]:
+        fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows), squeeze=False)
+        fig.suptitle(title, fontsize=14, fontweight="bold")
+        for idx, r in enumerate(results):
+            ax = axes[idx // cols][idx % cols]
+            t = r["rgb_data"]["times"]
+            vals = r["rgb_data"].get(ratio_key, [])
+            if vals and vals[0] is not None:
+                ax.plot(t, vals, "m-o", ms=3)
+            ax.set_title(r["name"], fontsize=9)
+            ax.set_xlabel("Time (min)")
+            ax.set_ylabel(ratio_key)
+        for idx in range(n, rows * cols):
+            axes[idx // cols][idx % cols].axis("off")
+        plt.tight_layout()
+        _save(fig, os.path.join(out_dir, fname))
+
+
+def plot_sd_ratios(results: list[dict], out_dir: str):
+    """SD-algorithm weighted ratios over time."""
+    n = len(results)
+    cols = min(3, n)
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows), squeeze=False)
+    fig.suptitle("SD Algorithm — CV (SD/mean) per Channel", fontsize=14, fontweight="bold")
+
+    for idx, r in enumerate(results):
+        ax = axes[idx // cols][idx % cols]
+        sd = r["sd_result"]
+        t = sd["times"]
+        ax.plot(t, sd["ratio_R"],  "r-",  label="R",   lw=1.5)
+        ax.plot(t, sd["ratio_G"],  "g-",  label="G",   lw=1.5)
+        ax.plot(t, sd["ratio_B"],  "b-",  label="B",   lw=1.5)
+        ax.plot(t, sd["ratio_RG"], "r--", label="R/G", lw=1.0)
+        ax.plot(t, sd["ratio_RB"], "c--", label="R/B", lw=1.0)
+        ax.plot(t, sd["ratio_GB"], color="orange", ls="--", label="G/B", lw=1.0)
+        ax.axhline(config.SD_THRESHOLD_TWO, color="gray", ls="--", lw=1, label="Thr2")
+        ax.axhline(config.SD_THRESHOLD_ALL, color="black", ls=":", lw=1, label="ThrAll")
+        detected = r["sd_detected"]
+        ax.set_title(f"{r['name']} [{'DET' if detected else 'neg'}]", fontsize=9)
+        ax.set_xlabel("Time (min)")
+        ax.legend(fontsize=5)
+
+    for idx in range(n, rows * cols):
+        axes[idx // cols][idx % cols].axis("off")
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "sd_ratios.png"))
+
+
+def plot_slope_scores(results: list[dict], out_dir: str):
+    """Slope algorithm weighted scores over time."""
+    n = len(results)
+    cols = min(3, n)
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows), squeeze=False)
+    fig.suptitle("Slope Algorithm — Weighted Scores", fontsize=14, fontweight="bold")
+
+    for idx, r in enumerate(results):
+        ax = axes[idx // cols][idx % cols]
+        sl = r["slope_result"]
+        t = sl["times"]
+        ax.plot(t, sl["weighted_scores"], "purple", lw=1.5)
+        ax.axhline(config.SLOPE_WEIGHTED_SCORE_THRESHOLD, color="red", ls="--", lw=1)
+        detected = r["slope_detected"]
+        ax.set_title(f"{r['name']} [{'DET' if detected else 'neg'}]", fontsize=9)
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Weighted score")
+
+    for idx in range(n, rows * cols):
+        axes[idx // cols][idx % cols].axis("off")
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "slope_scores.png"))
+
+
+
+def plot_performance_summary(metrics: dict, out_dir: str):
+    """Bar chart of Sensitivity, Specificity, PPV, NPV for both algorithms."""
+    algos = list(metrics.keys())
+    metric_names = ["sensitivity_pct", "specificity_pct", "PPV_pct", "NPV_pct"]
+    labels = ["Sensitivity", "Specificity", "PPV", "NPV"]
+    x = np.arange(len(labels))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for i, algo in enumerate(algos):
+        vals = [metrics[algo].get(m, 0) for m in metric_names]
+        vals = [0 if (v != v) else v for v in vals]  # replace NaN with 0
+        ax.bar(x + i * width, vals, width, label=algo)
+
+    ax.set_title("Algorithm Performance", fontsize=13, fontweight="bold")
+    ax.set_xticks(x + width / 2)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Percentage (%)")
+    ax.set_ylim(0, 110)
+    ax.legend()
+    ax.axhline(100, color="green", ls="--", lw=0.8, alpha=0.5)
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "performance_summary.png"))
+
+
+def plot_per_group(results: list[dict], out_dir: str):
+    """
+    One figure per group — shows every chart for that group on a single page.
+    Saves as  results/groups/<safe_name>.png
+    """
+    groups_dir = os.path.join(out_dir, "groups")
+    os.makedirs(groups_dir, exist_ok=True)
+
+    for r in results:
+        name = r["name"]
+        t = r["rgb_data"]["times"]
+
+        fig, axes = plt.subplots(4, 2, figsize=(12, 17))
+        conc = r["concentration_cfu_ml"]
+        conc_str = "0 (control)" if conc == 0 else f"{conc:.0e} CFU/mL"
+        sd_det = "DETECTED" if r["sd_detected"] else "not detected"
+        sl_det = "DETECTED" if r["slope_detected"] else "not detected"
+        fig.suptitle(
+            f"Group: {name}   |   Concentration: {conc_str}\n"
+            f"SD algorithm: {sd_det}   |   Slope algorithm: {sl_det}",
+            fontsize=12, fontweight="bold", y=0.98,
+        )
+
+        # ── (0,0) RGB traces ──────────────────────────────────────────────────
+        ax = axes[0][0]
+        ax.plot(t, r["rgb_data"]["R"], "r-o", ms=4, label="R")
+        ax.plot(t, r["rgb_data"]["G"], "g-o", ms=4, label="G")
+        ax.plot(t, r["rgb_data"]["B"], "b-o", ms=4, label="B")
+        ax.set_title("RGB Channel Traces")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Mean pixel value (0–255)")
+        ax.set_ylim(0, 270)
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        # ── (0,1) All three ratios (R/G, R/B, G/B) ───────────────────────────
+        ax = axes[0][1]
+        for ratio_key, color, label in [
+            ("RG_ratio", "m",      "R/G"),
+            ("RB_ratio", "c",      "R/B"),
+            ("GB_ratio", "orange", "G/B"),
+        ]:
+            vals = r["rgb_data"].get(ratio_key, [])
+            if vals and vals[0] is not None:
+                ax.plot(t, vals, color=color, marker="o", ms=3, label=label)
+        ax.set_title("Color Ratios (R/G, R/B, G/B)")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Ratio value")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        # ── (1,0) SD algorithm — raw channels (diagnostic only) ──────────────
+        ax = axes[1][0]
+        sd = r["sd_result"]
+        ax.plot(sd["times"], sd["ratio_R"], "r-",  lw=1.5, label="R")
+        ax.plot(sd["times"], sd["ratio_G"], "g-",  lw=1.5, label="G")
+        ax.plot(sd["times"], sd["ratio_B"], "b-",  lw=1.5, label="B")
+        ax.axhline(config.SD_THRESHOLD_TWO, color="gray",  ls="--", lw=1,
+                   label=f"Thr2={config.SD_THRESHOLD_TWO}")
+        ax.axhline(config.SD_THRESHOLD_ALL, color="black", ls=":",  lw=1,
+                   label=f"ThrAll={config.SD_THRESHOLD_ALL}")
+        ax.set_title("SD — Raw Channels (diagnostic, not used for detection)")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("SD / mean (CV)")
+        ax.legend(fontsize=6)
+        ax.grid(True, alpha=0.3)
+
+        # ── (1,1) SD algorithm — ratio channels (detection) ──────────────────
+        ax = axes[1][1]
+        ax.plot(sd["times"], sd["ratio_RG"], "r--",    lw=1.5, label="R/G")
+        ax.plot(sd["times"], sd["ratio_RB"], "c--",    lw=1.5, label="R/B")
+        ax.plot(sd["times"], sd["ratio_GB"], color="orange", ls="--", lw=1.5, label="G/B")
+        ax.axhline(config.SD_THRESHOLD_TWO, color="gray",  ls="--", lw=1,
+                   label=f"Thr2={config.SD_THRESHOLD_TWO}")
+        ax.axhline(config.SD_THRESHOLD_ALL, color="black", ls=":",  lw=1,
+                   label=f"ThrAll={config.SD_THRESHOLD_ALL}")
+        if r["sd_detected"] and r.get("sd_first_detection_min") is not None:
+            ax.axvline(r["sd_first_detection_min"], color="black", ls="-.", lw=1.2,
+                       label=f"Det @ {r['sd_first_detection_min']:.0f} min")
+        ax.set_title(f"SD — Ratio Channels (detection) [{sd_det}]")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("SD / mean (CV)")
+        ax.legend(fontsize=6)
+        ax.grid(True, alpha=0.3)
+
+        # ── (2,0) Slope algorithm total score ────────────────────────────────
+        ax = axes[2][0]
+        sl = r["slope_result"]
+        ax.plot(sl["times"], sl["weighted_scores"], color="purple", lw=1.5,
+                label="Total score")
+        ax.axhline(config.SLOPE_WEIGHTED_SCORE_THRESHOLD, color="red", ls="--", lw=1,
+                   label=f"Threshold={config.SLOPE_WEIGHTED_SCORE_THRESHOLD}")
+        if r["slope_detected"] and r.get("slope_first_detection_min") is not None:
+            ax.axvline(r["slope_first_detection_min"], color="black", ls="-.", lw=1.2,
+                       label=f"Det @ {r['slope_first_detection_min']:.0f} min")
+        ax.set_title(f"Slope Algorithm  [{sl_det}]")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Total score (sum across channels)")
+        ax.legend(fontsize=7)
+        ax.grid(True, alpha=0.3)
+
+        # ── (2,1) empty — placeholder until slope rewrite lands ──────────────
+        axes[2][1].axis("off")
+
+        # ── (3,0) + (3,1) Summary text box ───────────────────────────────────
+        ax = axes[3][0]
+        ax.axis("off")
+
+        def _fmt(v):
+            if v is None:
+                return "N/A"
+            try:
+                return f"{float(v):.4f}"
+            except (TypeError, ValueError):
+                return str(v)
+
+        summary_lines = [
+            f"Group:           {name}",
+            f"Concentration:   {conc_str}",
+            "",
+            f"SD algorithm:    {sd_det}",
+        ]
+        if r["sd_detected"] and r.get("sd_first_detection_min") is not None:
+            summary_lines.append(f"  First detection: {r['sd_first_detection_min']:.0f} min")
+        summary_lines += [
+            "",
+            f"Slope algorithm: {sl_det}",
+        ]
+        if r["slope_detected"] and r.get("slope_first_detection_min") is not None:
+            summary_lines.append(f"  First detection: {r['slope_first_detection_min']:.0f} min")
+        summary_lines += [
+            "",
+            f"Final R/G ratio: {_fmt(r.get('final_RG_ratio'))}",
+            f"Final R/B ratio: {_fmt(r.get('final_RB_ratio'))}",
+            f"Final G/B ratio: {_fmt(r.get('final_GB_ratio'))}",
+            f"Normalized:      {r['rgb_data'].get('normalized', False)}",
+        ]
+        ax.text(
+            0.05, 0.95, "\n".join(summary_lines),
+            transform=ax.transAxes,
+            fontsize=10, verticalalignment="top",
+            fontfamily="monospace",
+            bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.8),
+        )
+        axes[3][1].axis("off")
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        safe_name = name.replace("/", "_").replace(" ", "_")
+        out_path = os.path.join(groups_dir, f"{safe_name}.png")
+        _save(fig, out_path)
+
+
+def generate_all_plots(results: list[dict], metrics: dict, out_dir: str):
+    """Generate all plots and save to out_dir."""
+    plot_rgb_traces(results, out_dir)
+    plot_ratios(results, out_dir)
+    plot_sd_ratios(results, out_dir)
+    plot_slope_scores(results, out_dir)
+    plot_performance_summary(metrics, out_dir)
+    plot_per_group(results, out_dir)
