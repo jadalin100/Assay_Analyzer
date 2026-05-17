@@ -146,14 +146,6 @@ Computes the cosine of the angle between a fixed 7-point baseline regression (t 
 
 A continuous, ANOVA-ready variable that captures sustained evidence of color conversion from two complementary perspectives.
 
-## Calibration Status
-
-| Parameter group | Status |
-|---|---|
-| SD thresholds | Calibrated for unlocked auto-exposure (2026-05-17) — **recalibrate after first locked-exposure trial** |
-| Slope A/B/C | Rough estimates from 10⁵ baseline trial — **recalibrate after first full 120-min trial** |
-| LOAD_TIERS (60 min, 90 min) | Placeholders — **calibrate from 10⁶ and 10⁷ first_detection_min values** |
-
 ## References
 
 - Malanoski, A.P. et al. (2016). Simultaneous Identification of Multiple Analytes Using a Self-Reporting Spectroscopic Hybridization Assay. *Analytical Chemistry.*
