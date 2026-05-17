@@ -26,6 +26,70 @@ def _should_skip(folder_name: str) -> bool:
     return any(skip in name for skip in config.SKIP_FOLDERS)
 
 
+def _is_reagent_reference(folder_name: str) -> bool:
+    """
+    Return True if this folder is the resazurin reagent control reference.
+    When USE_REAGENT_REFERENCE is True this folder is loaded for its RGB series
+    but excluded from classification — its values normalise all other groups.
+    """
+    if not getattr(config, "USE_REAGENT_REFERENCE", False):
+        return False
+    prefix = getattr(config, "REAGENT_REFERENCE_FOLDER", "").lower().strip()
+    return bool(prefix) and folder_name.lower().strip().startswith(prefix)
+
+
+def _normalize_to_reagent_reference(samples: list[dict], ref_rgb: dict) -> None:
+    """
+    Divide each sample's R/G, R/B, and G/B ratio values by the reagent control's
+    value at the same timepoint.  Edits rgb_data in-place.
+
+    After normalization:
+      - A stable (non-converting) group stays near 1.0 throughout the assay.
+      - A colour-changing group rises above 1.0 as bacteria reduce resazurin.
+      - Lighting drift and auto-exposure changes cancel by construction because
+        both the group and the reference are affected equally.
+
+    Timepoints present in the group but missing from the reference are left
+    unnormalized (rare edge case — both folders should share the same image set).
+    """
+    ref_by_time: dict[float, int] = {t: idx for idx, t in enumerate(ref_rgb["times"])}
+    ratio_keys = [k for k in ("RG_ratio", "RB_ratio", "GB_ratio") if ref_rgb.get(k)]
+
+    for sample in samples:
+        rgb = sample["rgb_data"]
+        for i, t in enumerate(rgb["times"]):
+            ref_i = ref_by_time.get(t)
+            if ref_i is None:
+                continue
+            for key in ratio_keys:
+                if not rgb.get(key):
+                    continue
+                ref_val = ref_rgb[key][ref_i]
+                if ref_val and ref_val != 0.0:
+                    rgb[key][i] = rgb[key][i] / ref_val
+
+
+def _save_reagent_reference_csv(ref_rgb: dict, ref_name: str, path: str):
+    """Save the raw (pre-normalization) reagent reference time series."""
+    fieldnames = ["group", "time_min", "R", "G", "B", "RG_ratio", "RB_ratio", "GB_ratio"]
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        times = ref_rgb["times"]
+        for i, t in enumerate(times):
+            writer.writerow({
+                "group":    ref_name,
+                "time_min": int(t),
+                "R":        round(ref_rgb["R"][i], 4)          if i < len(ref_rgb.get("R", [])) else "",
+                "G":        round(ref_rgb["G"][i], 4)          if i < len(ref_rgb.get("G", [])) else "",
+                "B":        round(ref_rgb["B"][i], 4)          if i < len(ref_rgb.get("B", [])) else "",
+                "RG_ratio": round(ref_rgb["RG_ratio"][i], 6)   if ref_rgb.get("RG_ratio") and i < len(ref_rgb["RG_ratio"]) else "",
+                "RB_ratio": round(ref_rgb["RB_ratio"][i], 6)   if ref_rgb.get("RB_ratio") and i < len(ref_rgb["RB_ratio"]) else "",
+                "GB_ratio": round(ref_rgb["GB_ratio"][i], 6)   if ref_rgb.get("GB_ratio") and i < len(ref_rgb["GB_ratio"]) else "",
+            })
+    print(f"  CSV saved: {path}")
+
+
 def _folder_sort_key(name: str) -> tuple:
     """
     Sort folders by their position in config.FOLDER_ORDER.
@@ -94,13 +158,22 @@ def _load_sample(sample_dir: str, folder_name: str, shared_roi=None, shared_ref_
     }
 
 
-def _save_rgb_timeseries_csv(results: list[dict], path: str):
+def _save_rgb_timeseries_csv(results: list[dict], path: str,
+                             reagent_normalized: bool = False):
     """
-    Save raw RGB values and ratios at every timepoint.
-    One row per (group × timepoint): group, time_min, R, G, B, RG_ratio, RB_ratio, GB_ratio.
+    Save RGB values and ratios at every timepoint.
+    One row per (group × timepoint).
+
+    The 'reagent_normalized' column is True when USE_REAGENT_REFERENCE was applied —
+    ratio columns then represent values relative to the reagent control (1.0 = same
+    as reagent), not raw pixel ratios.
     """
-    fieldnames = ["group", "concentration_cfu_ml", "time_min",
-                  "R", "G", "B", "RG_ratio", "RB_ratio", "GB_ratio"]
+    fieldnames = [
+        "group", "concentration_cfu_ml", "time_min",
+        "R", "G", "B",
+        "RG_ratio", "RB_ratio", "GB_ratio",
+        "reagent_normalized",
+    ]
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -112,12 +185,13 @@ def _save_rgb_timeseries_csv(results: list[dict], path: str):
                     "group":                r["name"],
                     "concentration_cfu_ml": r["concentration_cfu_ml"],
                     "time_min":             int(t),
-                    "R":                    round(rgb["R"][i], 4) if i < len(rgb["R"]) else "",
-                    "G":                    round(rgb["G"][i], 4) if i < len(rgb["G"]) else "",
-                    "B":                    round(rgb["B"][i], 4) if i < len(rgb["B"]) else "",
-                    "RG_ratio":             round(rgb["RG_ratio"][i], 6) if rgb.get("RG_ratio") and i < len(rgb["RG_ratio"]) else "",
-                    "RB_ratio":             round(rgb["RB_ratio"][i], 6) if rgb.get("RB_ratio") and i < len(rgb["RB_ratio"]) else "",
-                    "GB_ratio":             round(rgb["GB_ratio"][i], 6) if rgb.get("GB_ratio") and i < len(rgb["GB_ratio"]) else "",
+                    "R":       round(rgb["R"][i], 4)          if i < len(rgb.get("R", [])) else "",
+                    "G":       round(rgb["G"][i], 4)          if i < len(rgb.get("G", [])) else "",
+                    "B":       round(rgb["B"][i], 4)          if i < len(rgb.get("B", [])) else "",
+                    "RG_ratio": round(rgb["RG_ratio"][i], 6)  if rgb.get("RG_ratio") and i < len(rgb["RG_ratio"]) else "",
+                    "RB_ratio": round(rgb["RB_ratio"][i], 6)  if rgb.get("RB_ratio") and i < len(rgb["RB_ratio"]) else "",
+                    "GB_ratio": round(rgb["GB_ratio"][i], 6)  if rgb.get("GB_ratio") and i < len(rgb["GB_ratio"]) else "",
+                    "reagent_normalized": reagent_normalized,
                 })
     print(f"  CSV saved: {path}")
 
@@ -125,20 +199,39 @@ def _save_rgb_timeseries_csv(results: list[dict], path: str):
 def _save_csv(results: list[dict], path: str):
     """Save a summary CSV with one row per sample."""
     fieldnames = [
-        "name", "concentration_cfu_ml", "ground_truth_positive",
-        "overall_positive",
-        "sd_detected", "sd_first_detection_min",
+        # ── Identity ──────────────────────────────────────────────────────────
+        "name", "concentration_cfu_ml", "ground_truth_positive", "overall_positive",
+        # ── Combined score (primary ANOVA variable) ───────────────────────────
+        "total_detection_score",        # SD event count + slope total weighted score
+        "load_tier",
+        "concordance_status",           # concordant_negative/positive, timing_discordant, algorithm_discordant
+        "concordance_discordance_min",  # |sd_first - slope_first| when both detected
+        # ── SD algorithm ──────────────────────────────────────────────────────
+        "sd_detected", "sd_first_detection_min", "sd_event_count",
+        # ── Slope algorithm ───────────────────────────────────────────────────
         "slope_detected", "slope_first_detection_min", "slope_total_score",
+        # ── Continuous kinetic metrics ────────────────────────────────────────
+        "rg_auc",                       # area under normalized R/G curve (ratio·min)
+        "rb_auc",                       # area under normalized R/B curve
+        "gb_auc",                       # area under normalized G/B curve
+        "time_to_ratio_threshold",      # first t (min) where R/G ≥ RATIO_THRESHOLD
+        "rate_of_change_rg",            # slope of R/G in last SLOPE_CURRENT_POINTS frames (ratio/min)
+        # ── Final ratio values ────────────────────────────────────────────────
         "final_RG_ratio", "final_RB_ratio", "final_GB_ratio",
     ]
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for r in results:
-            slope_scores = r.get("slope_result", {}).get("weighted_scores", [])
             row = {k: r.get(k, "") for k in fieldnames}
             row["overall_positive"] = r.get("sd_detected") or r.get("slope_detected")
-            row["slope_total_score"] = sum(slope_scores)
+            # Round floats for readability
+            for key in ("total_detection_score", "slope_total_score",
+                        "rg_auc", "rb_auc", "gb_auc", "rate_of_change_rg"):
+                if r.get(key) is not None:
+                    row[key] = round(r[key], 4)
+            if r.get("time_to_ratio_threshold") is not None:
+                row["time_to_ratio_threshold"] = int(r["time_to_ratio_threshold"])
             writer.writerow(row)
     print(f"  CSV saved: {path}")
 
@@ -167,11 +260,14 @@ def main():
         print(f"ERROR: No sample subdirectories found in: {data_dir}")
         sys.exit(1)
 
-    # Print the order so the user can confirm before any pop-ups appear
+    # Print the order so the user can confirm before any pop-ups appear.
+    # Reagent reference is loaded but not classified — marked with (reference).
     sample_folders = [f for f in subdirs if not _should_skip(f)]
     print("\n  Processing order:")
     for i, f in enumerate(sample_folders, 1):
-        print(f"    {i}. {f}")
+        tag = "  [reference — loaded for normalization, not classified]" \
+              if _is_reagent_reference(f) else ""
+        print(f"    {i}. {f}{tag}")
     print()
 
     per_folder = getattr(config, "PER_FOLDER_ROI", False)
@@ -223,6 +319,44 @@ def main():
 
     print(f"\n  Loaded {len(samples)} samples.")
 
+    # ── Stage 1b: Timepoint count validation ──────────────────────────────────
+    time_counts = {s["name"]: len(s["rgb_data"]["times"]) for s in samples}
+    unique_counts = set(time_counts.values())
+    if len(unique_counts) > 1:
+        print("\n  !! WARNING: Groups have different numbers of timepoints.")
+        print("     Normalization will be misaligned at timepoints missing from any folder.")
+        print("     Check that no images are missing or extra:\n")
+        for name, count in time_counts.items():
+            marker = " <-- DIFFERENT" if count != max(unique_counts) else ""
+            print(f"    {count:3d} timepoints  {name}{marker}")
+        print()
+    else:
+        tp_count = next(iter(unique_counts))
+        print(f"  All groups: {tp_count} timepoints  ✓")
+
+    # ── Stage 1c: Reagent reference normalization ──────────────────────────────
+    if getattr(config, "USE_REAGENT_REFERENCE", False):
+        ref_sample = next(
+            (s for s in samples if _is_reagent_reference(s["name"])), None
+        )
+        if ref_sample:
+            ref_rgb_raw = ref_sample["rgb_data"]
+            ref_csv = os.path.join(results_dir, "reagent_reference_timeseries.csv")
+            _save_reagent_reference_csv(ref_rgb_raw, ref_sample["name"], ref_csv)
+            samples = [s for s in samples if not _is_reagent_reference(s["name"])]
+            _normalize_to_reagent_reference(samples, ref_rgb_raw)
+            print(
+                f"\n  Reagent reference: '{ref_sample['name']}'\n"
+                f"  Ratios normalized for {len(samples)} samples. "
+                f"(Raw reference saved to {ref_csv})"
+            )
+        else:
+            print(
+                f"\n  WARNING: USE_REAGENT_REFERENCE=True but no folder matching "
+                f"'{config.REAGENT_REFERENCE_FOLDER}' was found. "
+                f"Skipping normalization."
+            )
+
     # ── Stage 2: Classify ─────────────────────────────────────────────────────
     print("\n[2/5] Running detection algorithms...")
     results = classify_all(samples)
@@ -242,7 +376,10 @@ def main():
     csv_path = os.path.join(results_dir, "results_summary.csv")
     _save_csv(results, csv_path)
     rgb_csv_path = os.path.join(results_dir, "rgb_timeseries.csv")
-    _save_rgb_timeseries_csv(results, rgb_csv_path)
+    _save_rgb_timeseries_csv(
+        results, rgb_csv_path,
+        reagent_normalized=getattr(config, "USE_REAGENT_REFERENCE", False),
+    )
 
     # ── Stage 6: Per-group tables ─────────────────────────────────────────────
     print("\n[+] Per-group algorithm tables:")

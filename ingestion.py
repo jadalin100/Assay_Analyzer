@@ -222,16 +222,16 @@ def extract_rgb_series(
             r, g, b = _normalize_by_reference_card(r, g, b, img, current_ref_roi, verbose=True)
 
         eps = 1e-6
-        rb_ratio = r / (b + eps) if config.COMPUTE_RB_RATIO else None
         rg_ratio = r / (g + eps) if config.COMPUTE_RG_RATIO else None
-        gb_ratio = g / (b + eps)
+        rb_ratio = r / (b + eps) if config.COMPUTE_RB_RATIO else None
+        gb_ratio = g / (b + eps) if getattr(config, "COMPUTE_GB_RATIO", True) else None
 
         times.append(t)
         R_vals.append(r)
         G_vals.append(g)
         B_vals.append(b)
-        RB_ratio_vals.append(rb_ratio)
         RG_ratio_vals.append(rg_ratio)
+        RB_ratio_vals.append(rb_ratio)
         GB_ratio_vals.append(gb_ratio)
 
     return {
@@ -239,8 +239,8 @@ def extract_rgb_series(
         "R": R_vals,
         "G": G_vals,
         "B": B_vals,
-        "RB_ratio": RB_ratio_vals,
         "RG_ratio": RG_ratio_vals,
+        "RB_ratio": RB_ratio_vals,
         "GB_ratio": GB_ratio_vals,
         "roi": "per-image" if per_image else fixed_roi,
         "ref_roi": fixed_ref_roi,
@@ -339,16 +339,16 @@ def extract_rgb_from_video(video_path: str, roi: tuple[int, int, int, int] | Non
             r, g, b = _normalize_by_reference_card(r, g, b, frame, current_ref_roi, verbose=True)
 
         eps = 1e-6
-        rb_ratio = r / (b + eps) if config.COMPUTE_RB_RATIO else None
         rg_ratio = r / (g + eps) if config.COMPUTE_RG_RATIO else None
-        gb_ratio = g / (b + eps)
+        rb_ratio = r / (b + eps) if config.COMPUTE_RB_RATIO else None
+        gb_ratio = g / (b + eps) if getattr(config, "COMPUTE_GB_RATIO", True) else None
 
         times.append(t_min)
         R_vals.append(r)
         G_vals.append(g)
         B_vals.append(b)
-        RB_ratio_vals.append(rb_ratio)
         RG_ratio_vals.append(rg_ratio)
+        RB_ratio_vals.append(rb_ratio)
         GB_ratio_vals.append(gb_ratio)
 
     cap.release()
@@ -358,8 +358,8 @@ def extract_rgb_from_video(video_path: str, roi: tuple[int, int, int, int] | Non
         "R": R_vals,
         "G": G_vals,
         "B": B_vals,
-        "RB_ratio": RB_ratio_vals,
         "RG_ratio": RG_ratio_vals,
+        "RB_ratio": RB_ratio_vals,
         "GB_ratio": GB_ratio_vals,
         "roi": "per-image" if per_image else fixed_roi,
         "ref_roi": fixed_ref_roi,

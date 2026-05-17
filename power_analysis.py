@@ -26,8 +26,12 @@ import sys
 # Configuration — edit these to match your expectations
 # ---------------------------------------------------------------------------
 
-N_POSITIVE_GROUPS  = 4    # Groups that are true positives (10^5, 10^6, 10^7, 10^8)
-N_NEGATIVE_GROUPS  = 2    # Groups that are true negatives (Sterile ctrl, Reagent ctrl)
+N_POSITIVE_GROUPS  = 4    # True positives: 10^5, 10^6, 10^7, 10^8
+                          # (UTI_POSITIVE_THRESHOLD_CFU = 1e5 CFU/mL)
+N_NEGATIVE_GROUPS  = 6    # True negatives: Sterile ctrl + 10^1 + 10^2 + 10^3 + 10^4 + buffer only
+                          # Reagent control is now used as normalization reference (not classified).
+                          # Note: 10^4 may show late weak signal due to growth during incubation —
+                          # treat as negative for power analysis but flag in results.
 
 # Your best guess at true sensitivity / specificity based on pilot data or
 # literature.  If unknown, use 0.90 as a conservative assumption.

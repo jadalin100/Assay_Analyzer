@@ -254,8 +254,24 @@ def plot_per_group(results: list[dict], out_dir: str):
         ax.legend(fontsize=7)
         ax.grid(True, alpha=0.3)
 
-        # ── (2,1) empty — placeholder until slope rewrite lands ──────────────
-        axes[2][1].axis("off")
+        # ── (2,1) Cumulative total detection score over time ─────────────────
+        ax = axes[2][1]
+        sd_flags     = sd.get("detection_flags", [])
+        slope_scores = sl.get("weighted_scores", [])
+        n_tp = len(t)
+        sd_flags     = list(sd_flags)     + [0]   * (n_tp - len(sd_flags))
+        slope_scores = list(slope_scores) + [0.0] * (n_tp - len(slope_scores))
+        cumulative, running = [], 0.0
+        for sd_f, sl_s in zip(sd_flags, slope_scores):
+            running += int(bool(sd_f)) + float(sl_s)
+            cumulative.append(running)
+        ax.fill_between(t, cumulative, alpha=0.25, color="purple")
+        ax.plot(t, cumulative, color="purple", lw=1.5, label="Cumulative total")
+        ax.set_title("Cumulative Total Detection Score")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Cumulative score")
+        ax.legend(fontsize=7)
+        ax.grid(True, alpha=0.3)
 
         # ── (3,0) + (3,1) Summary text box ───────────────────────────────────
         ax = axes[3][0]
@@ -269,26 +285,37 @@ def plot_per_group(results: list[dict], out_dir: str):
             except (TypeError, ValueError):
                 return str(v)
 
+        ttr = r.get("time_to_ratio_threshold")
+        ttr_str = f"{int(ttr)} min" if ttr is not None else "never"
+        auc_str = f"{r['ratio_auc']:.1f}" if r.get("ratio_auc") is not None else "N/A"
+        tds_str = f"{r['total_detection_score']:.2f}" if r.get("total_detection_score") is not None else "N/A"
         summary_lines = [
-            f"Group:           {name}",
-            f"Concentration:   {conc_str}",
+            f"Group:                {name}",
+            f"Concentration:        {conc_str}",
             "",
-            f"SD algorithm:    {sd_det}",
+            f"SD algorithm:         {sd_det}",
         ]
         if r["sd_detected"] and r.get("sd_first_detection_min") is not None:
-            summary_lines.append(f"  First detection: {r['sd_first_detection_min']:.0f} min")
+            summary_lines.append(f"  First detect:       {r['sd_first_detection_min']:.0f} min")
         summary_lines += [
+            f"  Event count:        {r.get('sd_event_count', 0)}",
             "",
-            f"Slope algorithm: {sl_det}",
+            f"Slope algorithm:      {sl_det}",
         ]
         if r["slope_detected"] and r.get("slope_first_detection_min") is not None:
-            summary_lines.append(f"  First detection: {r['slope_first_detection_min']:.0f} min")
+            summary_lines.append(f"  First detect:       {r['slope_first_detection_min']:.0f} min")
         summary_lines += [
+            f"  Total score:        {_fmt(r.get('slope_total_score'))}",
             "",
-            f"Final R/G ratio: {_fmt(r.get('final_RG_ratio'))}",
-            f"Final R/B ratio: {_fmt(r.get('final_RB_ratio'))}",
-            f"Final G/B ratio: {_fmt(r.get('final_GB_ratio'))}",
-            f"Normalized:      {r['rgb_data'].get('normalized', False)}",
+            f"Total detection score:{tds_str}",
+            f"Load tier:            {r.get('load_tier', '—')}",
+            "",
+            f"Ratio AUC (R/G):      {auc_str}",
+            f"Time to threshold:    {ttr_str}",
+            "",
+            f"Final R/G ratio:      {_fmt(r.get('final_RG_ratio'))}",
+            f"Final R/B ratio:      {_fmt(r.get('final_RB_ratio'))}",
+            f"Ref-normalized:       {r['rgb_data'].get('normalized', False)}",
         ]
         ax.text(
             0.05, 0.95, "\n".join(summary_lines),
@@ -305,11 +332,45 @@ def plot_per_group(results: list[dict], out_dir: str):
         _save(fig, out_path)
 
 
+def plot_total_detection_scores(results: list[dict], out_dir: str):
+    """
+    Stacked bar chart: SD event count (bottom) + slope total score (top) per group.
+    Total bar height = total_detection_score.
+    Groups are sorted by concentration so dose-response is visible left-to-right.
+    """
+    sorted_results = sorted(results, key=lambda r: r["concentration_cfu_ml"])
+    labels   = [r["name"] for r in sorted_results]
+    sd_vals  = [r.get("sd_event_count", 0) for r in sorted_results]
+    sl_vals  = [r.get("slope_total_score", 0.0) for r in sorted_results]
+    totals   = [r.get("total_detection_score", 0.0) for r in sorted_results]
+
+    x = np.arange(len(labels))
+    fig, ax = plt.subplots(figsize=(max(8, len(labels) * 1.4), 5))
+
+    bars_sd = ax.bar(x, sd_vals, label="SD event count", color="#4C9BE8")
+    bars_sl = ax.bar(x, sl_vals, bottom=sd_vals, label="Slope total score", color="#E87B4C")
+
+    # Annotate total above each bar
+    for i, total in enumerate(totals):
+        ax.text(x[i], total + 0.3, f"{total:.1f}", ha="center", va="bottom", fontsize=8)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=8)
+    ax.set_ylabel("Score")
+    ax.set_title("Total Detection Score per Group\n(SD event count + slope weighted score)",
+                 fontweight="bold")
+    ax.legend()
+    ax.grid(axis="y", alpha=0.3)
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "total_detection_scores.png"))
+
+
 def generate_all_plots(results: list[dict], metrics: dict, out_dir: str):
     """Generate all plots and save to out_dir."""
     plot_rgb_traces(results, out_dir)
     plot_ratios(results, out_dir)
     plot_sd_ratios(results, out_dir)
     plot_slope_scores(results, out_dir)
+    plot_total_detection_scores(results, out_dir)
     plot_performance_summary(metrics, out_dir)
     plot_per_group(results, out_dir)

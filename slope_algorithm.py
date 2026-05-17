@@ -82,12 +82,11 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
     Baseline window: fixed, always the first SLOPE_BASELINE_POINTS timepoints.
     Current window:  sliding, last SLOPE_CURRENT_POINTS timepoints up to i.
 
-    Scoring begins at SLOPE_RAPID_CHANGE_FALLBACK (i=3, t=30 min by default).
-    All 6 channels scored: R, G, B, R/G, R/B, G/B.
-    Raw channels are included because the slope algorithm compares rates of
-    change between windows — lighting drift affects both windows equally and
-    does not produce false positives. SD uses ratios-only because variance IS
-    sensitive to absolute brightness noise.
+    Scoring begins at SLOPE_RAPID_CHANGE_FALLBACK (i=10, t=50 min by default).
+    Ratio channels only: R/G, R/B, G/B.
+    Raw R/G/B excluded — auto-exposure drift creates false slope changes in
+    absolute brightness. Ratios cancel this drift by construction.
+    SLOPE_A/B/C_SINGLE parameters are calibrated for ratio-scale (~1.0).
 
     Each channel is scored 0/1/2 via cosine check + R².
     Total score = unweighted sum across all 6 channels (max 12 per timepoint).
@@ -96,15 +95,13 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
     times = rgb_data["times"]
     n = len(times)
 
-    # All 6 channels scored: R, G, B + R/G, R/B, G/B.
-    # Raw channels are included here (unlike SD) because the slope algorithm
-    # compares rate-of-change between windows, not absolute values — global
-    # brightness drift produces similar slopes in both baseline and current
-    # windows and does not cause false positives.
-    R = rgb_data["R"]
-    G = rgb_data["G"]
-    B = rgb_data["B"]
-    channels: dict[str, list] = {"R": R, "G": G, "B": B}
+    # Ratio channels only: R/G, R/B, G/B.
+    # Raw R, G, B excluded — auto-exposure drift produces a real slope change
+    # in absolute brightness (fast initial drop then stabilisation) that the
+    # cosine check detects as a false positive even without any color change.
+    # Ratios cancel global brightness drift by construction.
+    # NOTE: SLOPE_A/B/C_SINGLE are calibrated for ratio-scale (~1.0), not 0-255.
+    channels: dict[str, list] = {}
     for key in ("RG_ratio", "RB_ratio", "GB_ratio"):
         vals = rgb_data.get(key, [])
         if vals and all(v is not None for v in vals):
@@ -115,13 +112,19 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
     score_threshold = config.SLOPE_WEIGHTED_SCORE_THRESHOLD
     effective_min   = min(config.SLOPE_RAPID_CHANGE_FALLBACK, n - 1)
 
+    min_consec: int = max(1, getattr(config, "SLOPE_MIN_CONSECUTIVE", 2))
+
     weighted_scores: list[float] = []
     detected = False
     first_detection_min = None
+    consecutive = 0          # frames in a row currently above threshold
+    run_start_min = None     # time of the first frame in the current run
 
     for i in range(n):
         if i < effective_min:
             weighted_scores.append(0.0)
+            consecutive = 0
+            run_start_min = None
             continue
 
         # Fixed baseline: always the first bp timepoints
@@ -145,9 +148,21 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
 
         weighted_scores.append(float(total_score))
 
-        if not detected and total_score > score_threshold:
-            detected = True
-            first_detection_min = times[i]
+        # Consecutive-frame persistence check.
+        # A single isolated spike above the threshold is treated as noise.
+        # Detection only fires once the score has exceeded the threshold for
+        # SLOPE_MIN_CONSECUTIVE frames in a row.  first_detection_min is
+        # recorded as the start of the run, not the frame that completed it.
+        if total_score > score_threshold:
+            if consecutive == 0:
+                run_start_min = times[i]   # mark the beginning of this run
+            consecutive += 1
+            if not detected and consecutive >= min_consec:
+                detected = True
+                first_detection_min = run_start_min
+        else:
+            consecutive = 0
+            run_start_min = None
 
     return {
         "times": times,

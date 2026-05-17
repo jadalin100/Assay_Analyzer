@@ -6,8 +6,8 @@
 # -----------------------------------------------------------------------------
 # Timing
 # -----------------------------------------------------------------------------
-CAPTURE_INTERVAL_MIN = 10       # Minutes between image captures
-TOTAL_DURATION_MIN = 90         # Total assay duration in minutes
+CAPTURE_INTERVAL_MIN = 5        # Minutes between image captures
+TOTAL_DURATION_MIN = 120        # Total assay duration in minutes
 
 # -----------------------------------------------------------------------------
 # Image / ROI
@@ -32,49 +32,102 @@ REFERENCE_CARD_ROI = None       # pop-up appears on first image — draw white s
                                 # Set to (x, y, width, height) to skip pop-up.
 
 # -----------------------------------------------------------------------------
+# Reagent control reference normalization
+# -----------------------------------------------------------------------------
+# When True, the resazurin reagent control folder is loaded but NOT classified.
+# Instead, every other group's R/G, R/B, and G/B ratio values are divided by
+# the reagent control's values at the same timepoint.
+#
+# Effect: a stable (non-converting) group stays at ~1.0 throughout.
+#         a colour-changing group rises above 1.0 as bacteria convert resazurin.
+#         Auto-exposure drift and lighting changes are cancelled by construction.
+#
+# NOTE: SD and slope thresholds were calibrated on raw ratios ~1.0.
+# After normalization the mean is still ~1.0 for negatives, so threshold
+# formulas remain valid in sign — but the absolute noise floor will be lower
+# (drift is removed).  Recalibrate SD_THRESHOLD_ALL/TWO after the first
+# locked-exposure normalized trial.
+USE_REAGENT_REFERENCE = True
+# Folder name prefix (case-insensitive) that identifies the reagent control.
+# Any folder whose name starts with this string is treated as the reference.
+REAGENT_REFERENCE_FOLDER = "resazurin reagent"
+
+# -----------------------------------------------------------------------------
 # Colorimetric ratio metrics
 # -----------------------------------------------------------------------------
-COMPUTE_RB_RATIO = True         # R / B
 COMPUTE_RG_RATIO = True         # R / G  (recommended primary metric)
+COMPUTE_RB_RATIO = True         # R / B  (strong signal: red rises, blue falls simultaneously)
+COMPUTE_GB_RATIO = True         # G / B  (complementary; G falls as resazurin converts)
 
 # -----------------------------------------------------------------------------
 # Standard Deviation Algorithm (Malanoski et al., 2016)
 # -----------------------------------------------------------------------------
-# SD_WINDOW = 9 matches the number of timepoints. The rolling window grows
-# from 1 point up to 9, so at the final timepoint it uses the full series.
+# SD_WINDOW = 9 → rolling window of 45 min (9 × 5-min intervals at CAPTURE_INTERVAL_MIN=5).
+# Full 120-min trial has 25 timepoints; window slides so recent variance is tracked,
+# not all-time CV.
 SD_WINDOW = 9
-# PLACEHOLDER values calibrated from imaging noise floor (2026-05-12, first trial).
-# Original paper value (0.00015) is too low for smartphone JPEG — fires on pure noise.
-# After next successful trial: raise until true negatives no longer detect,
-# then verify true positives still detect. Update both values together.
-SD_THRESHOLD_ALL = 0.025        # ALL channels in a set must exceed this, OR
-SD_THRESHOLD_TWO = 0.08         # ANY two channels in a set must exceed this
+
+# Thresholds calibrated 2026-05-17 on UNLOCKED auto-exposure data (noisy).
+#   Negatives peaked at cv_RG≈0.052, cv_RB≈0.070 (auto-exposure noise).
+#   10^6 showed cv_RG=0.182, cv_RB=0.217 — clear separation above 0.075.
+# !! RECALIBRATE after first locked-exposure + reagent-normalized trial !!
+#   With locked exposure, negative CV should drop to ~0.018.
+#   Lower SD_THRESHOLD_ALL toward 0.025–0.035 and SD_THRESHOLD_TWO toward 0.030–0.045
+#   until negatives stop triggering, then verify true positives still detect.
+SD_THRESHOLD_ALL = 0.060        # ALL ratio channels must exceed this, OR
+SD_THRESHOLD_TWO = 0.075        # ANY two ratio channels must exceed this
+
+# Minimum consecutive timepoints that must meet the SD threshold before detection
+# is declared. Mirrors SLOPE_MIN_CONSECUTIVE — eliminates single-frame spikes.
+# first_detection_min is set to the START of the run, not the confirming frame.
+SD_MIN_CONSECUTIVE = 2
 
 # -----------------------------------------------------------------------------
 # Slope Algorithm (Ciaccheri et al., 2023)
 # -----------------------------------------------------------------------------
-# PLACEHOLDER values calibrated for 9 timepoints (0–80 min, 10-min intervals).
-# TODO: After your next successful trial, note when color change first appears
-#       visually and set SLOPE_BASELINE_POINTS = that timepoint index,
-#       SLOPE_CURRENT_POINTS = 3-4, SLOPE_RAPID_CHANGE_FALLBACK = 2 or 3.
-SLOPE_BASELINE_POINTS = 4       # First 4 timepoints (0–30 min) used as baseline
-SLOPE_CURRENT_POINTS  = 4       # Rolling window of 4 recent timepoints
-SLOPE_RAPID_CHANGE_FALLBACK = 3 # Skip first 3 indices; first scoring at i=3 (t=30 min)
+# Calibrated from 10^5 baseline trial (2026-05-16, 5-min intervals, 0–55 min + t=120 final).
+# Stable phase confirmed t=0–30 min (indices 0–6). Color change for 10^5 occurs ~60–120 min.
+# Non-overlapping windows guaranteed: first score at i=10 (t=50 min) since bp+cp-1=10.
+# After next full trial (all groups, 120 min): verify overlap artifact is absent and
+# adjust SLOPE_RAPID_CHANGE_FALLBACK down if color change first appears earlier than t=50.
+SLOPE_BASELINE_POINTS = 7       # Indices 0–6 = t=0–30 min (confirmed stable phase)
+SLOPE_CURRENT_POINTS  = 4       # Rolling window of 4 points = 20-min window
+SLOPE_RAPID_CHANGE_FALLBACK = 10 # Index 10 = t=50 min at CAPTURE_INTERVAL_MIN=5.
+                                  # Formula: index × CAPTURE_INTERVAL_MIN = time.
+                                  # If you change CAPTURE_INTERVAL_MIN, recalculate
+                                  # the index so the first score still lands at ~t=50 min.
 
-SLOPE_A_SINGLE = 20
-SLOPE_B_SINGLE = 130
-SLOPE_C_SINGLE = 0.45
+# Threshold angle formula: θ = A·exp(−mean/B) + C  (degrees)
+# Calibrated for RATIO channels (mean ≈ 0.9–1.2 after reagent normalization), NOT raw 0–255.
+# At mean=1.0: θ ≈ 0.20·exp(−0.5) + 0.05 ≈ 0.17°
+# Signal angle for 10^5 colour change estimated at ~0.30° from baseline trial.
+# !! RECALIBRATE after first full 120-min reagent-normalized trial across all concentrations !!
+#   - If false positives appear: raise SLOPE_C_SINGLE (higher floor makes less sensitive)
+#   - If 10^5 is missed: lower SLOPE_C_SINGLE
+#   - Recalibrate SLOPE_A/B after you have angle measurements from multiple concentrations.
+SLOPE_A_SINGLE = 0.20
+SLOPE_B_SINGLE = 2.0
+SLOPE_C_SINGLE = 0.05
 
-SLOPE_A_MULTI = 70
-SLOPE_B_MULTI = 30
-SLOPE_C_MULTI = 0.45
+SLOPE_A_MULTI = 0.20
+SLOPE_B_MULTI = 2.0
+SLOPE_C_MULTI = 0.05
 
 SLOPE_R2_SCORE_1 = 0.67
 SLOPE_R2_SCORE_2 = 0.80
 
-# Per spec: total score across all channels must be > 1 (i.e., ≥ 2 in integer terms).
-# With 6 channels (R, G, B, R/G, R/B, G/B) each scoring 0/1/2, max total = 12.
+# With 3 ratio channels (R/G, R/B, G/B) each scoring 0/1/2, max total = 6.
+# Threshold > 1 means at least one channel must score 2, or two must score 1.
 SLOPE_WEIGHTED_SCORE_THRESHOLD = 1.0
+
+# Minimum number of consecutive timepoints that must exceed SLOPE_WEIGHTED_SCORE_THRESHOLD
+# before detection is declared.  Requires 2 consecutive frames by default, which
+# eliminates single-timepoint spikes caused by auto-exposure or noise without
+# delaying detection of a real sustained colour change.
+# first_detection_min is set to the START of the consecutive run, not the end,
+# so there is no timing penalty for requiring persistence.
+# Raise to 3 if isolated 2-frame spikes still appear on locked-exposure data.
+SLOPE_MIN_CONSECUTIVE = 2
 
 # -----------------------------------------------------------------------------
 # Experimental groups
@@ -87,7 +140,10 @@ CONCENTRATIONS = {
     "low":              1e4,
     "medium":           1e5,
     "high":             1e6,
-    # Numeric folder names (e.g. "10^5", "10^6", "10^7", "10^8")
+    # Numeric folder names (e.g. "10^1" through "10^8")
+    "10^1":             1e1,
+    "10^2":             1e2,
+    "10^3":             1e3,
     "10^4":             1e4,
     "10^5":             1e5,
     "10^6":             1e6,
@@ -106,14 +162,23 @@ SKIP_FOLDERS = ["reference card", "reference", ".ds_store"]
 # Desired processing order for sample folders (case-insensitive prefix match).
 # Folders not matching any entry are processed last, in alphabetical order.
 FOLDER_ORDER = [
+    # Reagent reference — loaded first, used for normalization, not classified
     "resazurin reagent control",
     "resazurin reagent",
     "reagent control",
+    # Sterile negative controls
     "sterile negative control",
     "sterile negative",
     "sterile",
     "negative",
+    # Sub-threshold concentrations (clinical negatives; ground_truth_positive = False)
+    # Note: 10^4 can grow ~6 doublings over 120 min and may show a late weak signal.
+    "10^1",
+    "10^2",
+    "10^3",
+    "10^4",
     "low",
+    # UTI-positive threshold and above
     "10^5",
     "medium",
     "10^6",
@@ -126,9 +191,34 @@ FOLDER_ORDER = [
 UTI_POSITIVE_THRESHOLD_CFU = 1e5   # ≥ 10^5 CFU/mL = true positive (clinical UTI threshold)
 
 # -----------------------------------------------------------------------------
+# Bacterial load tiers — based on time-to-first-detection (minutes)
+# Detection earlier = faster conversion = higher bacterial load.
+# Cutoffs are PLACEHOLDERS — calibrate after first full 120-min trial.
+# Use the earliest first_detection_min across SD and slope for assignment.
+# -----------------------------------------------------------------------------
+LOAD_TIERS = {
+    # tier_label:       max first_detection_min to qualify for this tier
+    # !! ALL CUTOFFS ARE PLACEHOLDERS except 120 min !!
+    # Calibrate 60-min and 90-min boundaries after first full 120-min
+    # reagent-normalized trial by reading first_detection_min for 10^6 and 10^7 groups.
+    "heavy  (≥10^7)":   60,   # Placeholder — calibrate from 10^7 first_detection_min
+    "moderate (≥10^6)": 90,   # Placeholder — calibrate from 10^6 first_detection_min
+    "low  (≥10^5)":    120,   # Confirmed — 10^5 converts between t=60–120 min
+    # Anything detected after 120 min or not at all → negative
+}
+
+# -----------------------------------------------------------------------------
 # Statistical analysis
 # -----------------------------------------------------------------------------
 ALPHA = 0.05
+
+# Fixed normalized-ratio threshold for time-to-threshold metric.
+# After reagent-reference normalization, a stable negative stays at ~1.0.
+# A value of 1.10 means the group's R/G ratio is 10% above the reagent control —
+# a conservative threshold that should not fire on noise.
+# Calibrate after first normalized trial: raise if negatives briefly touch 1.10,
+# lower if true positives are slow to reach it.
+RATIO_THRESHOLD = 1.10
 
 # -----------------------------------------------------------------------------
 # Output

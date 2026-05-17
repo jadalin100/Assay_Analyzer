@@ -1,5 +1,7 @@
 # =============================================================================
 # reporting.py — Print and save per-group summary tables for both algorithms.
+#
+# CSV structure (all time-series files use long format: one row per group × timepoint)
 # =============================================================================
 
 import os
@@ -15,21 +17,28 @@ def _det(flag: bool) -> str:
     return "YES" if flag else "no"
 
 
-# ---------------------------------------------------------------------------
-# Slope table
-# ---------------------------------------------------------------------------
+def _fmt_val(v, decimals: int = 4) -> str:
+    if v is None or v == "":
+        return "—"
+    try:
+        return f"{float(v):.{decimals}f}"
+    except (TypeError, ValueError):
+        return str(v)
+
+
+# =============================================================================
+# Slope algorithm
+# =============================================================================
 
 def print_slope_table(results: list[dict]):
-    """Print per-group slope-algorithm total score at each timepoint."""
+    """Print per-group slope algorithm total score at each timepoint."""
     W_GROUP = 36
     W_TIME  = 7
     W_DET   = 10
-    W_FIRST = 16
+    W_FIRST = 18
 
-    # Gather all timepoints from first result
     first_times = results[0]["slope_result"]["times"]
     time_headers = "".join(_col(f"t={int(t)}", W_TIME) for t in first_times)
-
     header = (
         _col("Group", W_GROUP)
         + time_headers
@@ -41,175 +50,227 @@ def print_slope_table(results: list[dict]):
     print()
     print("=" * len(sep))
     print("  SLOPE ALGORITHM — Total channel score at each timepoint")
-    print(f"  Detection threshold: total score > {config.SLOPE_WEIGHTED_SCORE_THRESHOLD}")
+    print(f"  Threshold: score > {config.SLOPE_WEIGHTED_SCORE_THRESHOLD}  "
+          f"for ≥ {config.SLOPE_MIN_CONSECUTIVE} consecutive frames")
     print("=" * len(sep))
     print(header)
     print(sep)
 
     for r in results:
         sl = r["slope_result"]
-        score_cells = "".join(
-            _col(f"{s:.0f}", W_TIME) for s in sl["weighted_scores"]
-        )
+        score_cells = "".join(_col(f"{s:.1f}", W_TIME) for s in sl["weighted_scores"])
         first = r.get("slope_first_detection_min")
         first_str = f"{int(first)} min" if first is not None else "—"
-        row = (
+        print(
             _col(r["name"], W_GROUP)
             + score_cells
             + _col(_det(r["slope_detected"]), W_DET)
             + _col(first_str, W_FIRST)
         )
-        print(row)
 
     print(sep)
     print()
 
 
 def save_slope_csv(results: list[dict], out_dir: str):
-    """Save slope total scores per timepoint as CSV."""
-    first_times = results[0]["slope_result"]["times"]
-    time_cols   = [f"score_t{int(t)}" for t in first_times]
-
-    fieldnames = (
-        ["group", "concentration_cfu_ml"]
-        + time_cols
-        + ["detected", "first_detection_min"]
-    )
-
+    """
+    Save slope scores — long format: one row per group × timepoint.
+    Summary section appended after a blank row.
+    """
     path = os.path.join(out_dir, "slope_scores.csv")
+    threshold = config.SLOPE_WEIGHTED_SCORE_THRESHOLD
+
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        writer = csv.writer(f)
+
+        # ── Per-timepoint section ──────────────────────────────────────────────
+        writer.writerow(["# SLOPE SCORES — PER TIMEPOINT"])
+        writer.writerow([
+            "group", "concentration_cfu_ml", "time_min",
+            "weighted_score", "above_threshold",
+        ])
         for r in results:
-            sl  = r["slope_result"]
-            row = {
-                "group":                 r["name"],
-                "concentration_cfu_ml":  r["concentration_cfu_ml"],
-                **{col: round(s, 4) for col, s in zip(time_cols, sl["weighted_scores"])},
-                "detected":              r["slope_detected"],
-                "first_detection_min":   r.get("slope_first_detection_min", ""),
-            }
-            writer.writerow(row)
+            sl = r["slope_result"]
+            for t, score in zip(sl["times"], sl["weighted_scores"]):
+                writer.writerow([
+                    r["name"],
+                    r["concentration_cfu_ml"],
+                    int(t),
+                    round(score, 4),
+                    score > threshold,
+                ])
+
+        # ── Per-group summary ──────────────────────────────────────────────────
+        writer.writerow([])
+        writer.writerow(["# SLOPE SCORES — PER-GROUP SUMMARY"])
+        writer.writerow([
+            "group", "concentration_cfu_ml",
+            "slope_total_score", "slope_event_count",
+            "detected", "first_detection_min",
+        ])
+        for r in results:
+            sl = r["slope_result"]
+            event_count = sum(1 for s in sl["weighted_scores"] if s > threshold)
+            writer.writerow([
+                r["name"],
+                r["concentration_cfu_ml"],
+                round(r.get("slope_total_score", 0.0), 4),
+                event_count,
+                r["slope_detected"],
+                int(r["slope_first_detection_min"]) if r.get("slope_first_detection_min") is not None else "",
+            ])
+
     print(f"  Saved: {path}")
 
 
-# ---------------------------------------------------------------------------
-# SD table
-# ---------------------------------------------------------------------------
+# =============================================================================
+# SD algorithm
+# =============================================================================
 
 def print_sd_table(results: list[dict]):
-    """Print per-group SD/mean (CV) at final timepoint. Ratio channels drive detection."""
+    """
+    Print SD algorithm CV values at every timepoint for ratio channels.
+    Threshold lines shown for reference.
+    """
     thr_all = config.SD_THRESHOLD_ALL
     thr_two = config.SD_THRESHOLD_TWO
 
-    diag_channels = ["R(diag)", "G(diag)", "B(diag)"]
-    det_channels  = ["R/G", "R/B", "G/B"]
-    diag_keys     = ["ratio_R", "ratio_G", "ratio_B"]
-    det_keys      = ["ratio_RG", "ratio_RB", "ratio_GB"]
+    W_GROUP = 30
+    W_TIME  = 6
+    W_CH    = 8
+    W_FLAG  = 7
 
-    W_GROUP = 36
-    W_VAL   = 10
-    W_FLAG  = 12
-    W_DET   = 8
+    # Build timepoints from first result
+    first_times = results[0]["sd_result"]["times"]
 
-    channel_header = (
-        "".join(_col(ch, W_VAL) for ch in diag_channels)
-        + "".join(_col(ch, W_VAL) for ch in det_channels)
-    )
-    header = (
+    header_top = (
         _col("Group", W_GROUP)
-        + channel_header
-        + _col("All>thr_all", W_FLAG)
-        + _col("Two>thr_two", W_FLAG)
-        + _col("Detected", W_DET)
+        + "".join(_col(f"t={int(t)}", W_TIME + W_CH * 3, "^") for t in first_times)
+        + _col("Det", W_FLAG)
+        + _col("1st(min)", 9)
     )
-    sep = "-" * len(header)
+    header_ch = _col("", W_GROUP) + "".join(
+        _col("R/G", W_TIME) + _col("R/B", W_CH) + _col("G/B", W_CH)
+        for _ in first_times
+    )
+    sep = "-" * len(header_top)
 
+    print()
     print("=" * len(sep))
-    print("  SD ALGORITHM — CV (SD/mean) at final timepoint")
-    print(f"  Detection channels: R/G, R/B, G/B only  |  R, G, B shown for diagnostics")
-    print(f"  thr_all={thr_all}  (ALL ratio channels exceed)  thr_two={thr_two}  (ANY 2 ratio channels exceed)")
+    print("  SD ALGORITHM — CV (SD/mean) at every timepoint — ratio channels only")
+    print(f"  thr_all={thr_all} (ALL channels exceed)  "
+          f"thr_two={thr_two} (ANY 2 channels exceed)  "
+          f"min_consec={config.SD_MIN_CONSECUTIVE}")
     print("=" * len(sep))
-    print(header)
+    print(header_top)
+    print(header_ch)
     print(sep)
 
     for r in results:
-        sd  = r["sd_result"]
-        diag_vals = [sd[k][-1] if sd[k] else 0.0 for k in diag_keys]
-        det_vals  = [sd[k][-1] if sd[k] else 0.0 for k in det_keys]
-
-        all_exceed = all(v > thr_all for v in det_vals)
-        two_exceed = sum(v > thr_two for v in det_vals) >= 2
-
-        val_cells = (
-            "".join(_col(f"{v:.5f}", W_VAL) for v in diag_vals)
-            + "".join(_col(f"{v:.5f}", W_VAL) for v in det_vals)
-        )
-        row = (
+        sd = r["sd_result"]
+        cells = ""
+        for i in range(len(sd["times"])):
+            rg = sd["ratio_RG"][i] if i < len(sd["ratio_RG"]) else 0.0
+            rb = sd["ratio_RB"][i] if i < len(sd["ratio_RB"]) else 0.0
+            gb = sd["ratio_GB"][i] if i < len(sd["ratio_GB"]) else 0.0
+            cells += (
+                _col(f"{rg:.3f}", W_TIME)
+                + _col(f"{rb:.3f}", W_CH)
+                + _col(f"{gb:.3f}", W_CH)
+            )
+        first = r.get("sd_first_detection_min")
+        print(
             _col(r["name"], W_GROUP)
-            + val_cells
-            + _col("YES" if all_exceed else "no", W_FLAG)
-            + _col("YES" if two_exceed else "no", W_FLAG)
-            + _col(_det(r["sd_detected"]), W_DET)
+            + cells
+            + _col(_det(r["sd_detected"]), W_FLAG)
+            + _col(f"{int(first)}" if first is not None else "—", 9)
         )
-        print(row)
 
     print(sep)
     print()
 
 
 def save_sd_csv(results: list[dict], out_dir: str):
-    """Save SD/mean values at final timepoint as CSV."""
-    keys = ["ratio_R", "ratio_G", "ratio_B", "ratio_RG", "ratio_RB", "ratio_GB"]
-    col_names = ["cv_R", "cv_G", "cv_B", "cv_RG", "cv_RB", "cv_GB"]
-
-    fieldnames = (
-        ["group", "concentration_cfu_ml"]
-        + col_names
-        + ["all_exceed_thr_all", "two_exceed_thr_two", "detected", "first_detection_min"]
-    )
-
+    """
+    Save SD algorithm CV values — long format: one row per group × timepoint.
+    Summary section appended after a blank row.
+    """
     thr_all = config.SD_THRESHOLD_ALL
     thr_two = config.SD_THRESHOLD_TWO
-
     path = os.path.join(out_dir, "sd_channel_values.csv")
+
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        writer = csv.writer(f)
+
+        # ── Per-timepoint section ──────────────────────────────────────────────
+        writer.writerow([
+            f"# SD ALGORITHM — CV (SD/mean) PER TIMEPOINT",
+            f"thr_all={thr_all}", f"thr_two={thr_two}",
+        ])
+        writer.writerow([
+            "group", "concentration_cfu_ml", "time_min",
+            "cv_R", "cv_G", "cv_B",          # diagnostic only — not used for detection
+            "cv_RG", "cv_RB", "cv_GB",        # detection channels
+            "sd_flag",                         # 1 if criteria met at this timepoint
+            "meets_thr_all", "meets_thr_two",  # per-timepoint threshold checks
+        ])
         for r in results:
-            sd   = r["sd_result"]
-            vals = [sd[k][-1] if sd[k] else 0.0 for k in keys]
-            row  = {
-                "group":                 r["name"],
-                "concentration_cfu_ml":  r["concentration_cfu_ml"],
-                **{col: round(v, 6) for col, v in zip(col_names, vals)},
-                "all_exceed_thr_all":    all(v > thr_all for v in vals),
-                "two_exceed_thr_two":    sum(v > thr_two for v in vals) >= 2,
-                "detected":              r["sd_detected"],
-                "first_detection_min":   r.get("sd_first_detection_min", ""),
-            }
-            writer.writerow(row)
+            sd = r["sd_result"]
+            times = sd["times"]
+            for i, t in enumerate(times):
+                def _g(key, i=i):
+                    lst = sd.get(key, [])
+                    return round(lst[i], 6) if i < len(lst) else ""
+
+                cv_rg = sd["ratio_RG"][i] if i < len(sd["ratio_RG"]) else 0.0
+                cv_rb = sd["ratio_RB"][i] if i < len(sd["ratio_RB"]) else 0.0
+                cv_gb = sd["ratio_GB"][i] if i < len(sd["ratio_GB"]) else 0.0
+                writer.writerow([
+                    r["name"],
+                    r["concentration_cfu_ml"],
+                    int(t),
+                    _g("ratio_R"), _g("ratio_G"), _g("ratio_B"),
+                    round(cv_rg, 6), round(cv_rb, 6), round(cv_gb, 6),
+                    int(bool(sd["detection_flags"][i])) if i < len(sd["detection_flags"]) else "",
+                    all(v > thr_all for v in [cv_rg, cv_rb, cv_gb]),
+                    sum(v > thr_two for v in [cv_rg, cv_rb, cv_gb]) >= 2,
+                ])
+
+        # ── Per-group summary ──────────────────────────────────────────────────
+        writer.writerow([])
+        writer.writerow(["# SD ALGORITHM — PER-GROUP SUMMARY (final timepoint CVs)"])
+        writer.writerow([
+            "group", "concentration_cfu_ml",
+            "final_cv_RG", "final_cv_RB", "final_cv_GB",
+            "sd_event_count", "detected", "first_detection_min",
+        ])
+        for r in results:
+            sd = r["sd_result"]
+            def _last(key):
+                lst = sd.get(key, [])
+                return round(lst[-1], 6) if lst else ""
+            writer.writerow([
+                r["name"],
+                r["concentration_cfu_ml"],
+                _last("ratio_RG"), _last("ratio_RB"), _last("ratio_GB"),
+                r.get("sd_event_count", ""),
+                r["sd_detected"],
+                int(r["sd_first_detection_min"]) if r.get("sd_first_detection_min") is not None else "",
+            ])
+
     print(f"  Saved: {path}")
 
 
-# ---------------------------------------------------------------------------
-# Detection events table
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Detection events
+# =============================================================================
 
 def print_detection_events(results: list[dict]):
-    """
-    Per-group table of every timepoint where a detection event fired.
-
-    SD event:    criteria met at that timepoint (regardless of whether a prior
-                 timepoint already triggered overall detection).
-    Slope event: total channel score > SLOPE_WEIGHTED_SCORE_THRESHOLD at that
-                 timepoint.
-    """
+    """Per-group table of every timepoint where a detection event fired."""
     threshold = config.SLOPE_WEIGHTED_SCORE_THRESHOLD
-
     W_GROUP = 36
     W_ALGO  = 10
-    W_TIMES = 40
+    W_TIMES = 44
     W_COUNT = 7
 
     header = (
@@ -228,9 +289,8 @@ def print_detection_events(results: list[dict]):
     print(sep)
 
     for r in results:
-        sd  = r["sd_result"]
-        sl  = r["slope_result"]
-
+        sd = r["sd_result"]
+        sl = r["slope_result"]
         sd_events    = [t for t, flag in zip(sd["times"], sd["detection_flags"]) if flag]
         slope_events = [t for t, s in zip(sl["times"], sl["weighted_scores"]) if s > threshold]
 
@@ -249,44 +309,195 @@ def print_detection_events(results: list[dict]):
 
 
 def save_detection_events_csv(results: list[dict], out_dir: str):
-    """Save detection events (timepoints where criteria met) as CSV."""
+    """
+    Save detection events — one row per group with event timepoints listed,
+    plus total_detection_score and concordance status for quick comparison.
+    """
     threshold = config.SLOPE_WEIGHTED_SCORE_THRESHOLD
-    fieldnames = [
-        "group", "concentration_cfu_ml",
-        "sd_event_count", "sd_event_timepoints_min",
-        "slope_event_count", "slope_event_timepoints_min",
-        "slope_total_score",
-    ]
     path = os.path.join(out_dir, "detection_events.csv")
+
     with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        writer = csv.writer(f)
+        writer.writerow(["# DETECTION EVENTS — timepoints where each algorithm's criteria were met"])
+        writer.writerow([
+            "group", "concentration_cfu_ml",
+            "sd_event_count", "sd_event_timepoints_min",
+            "sd_detected", "sd_first_detection_min",
+            "slope_event_count", "slope_event_timepoints_min",
+            "slope_detected", "slope_first_detection_min",
+            "slope_total_score",
+            "total_detection_score",
+            "concordance_status", "concordance_discordance_min",
+        ])
         for r in results:
             sd = r["sd_result"]
             sl = r["slope_result"]
             sd_events    = [t for t, flag in zip(sd["times"], sd["detection_flags"]) if flag]
             slope_events = [t for t, s in zip(sl["times"], sl["weighted_scores"]) if s > threshold]
-            writer.writerow({
-                "group":                        r["name"],
-                "concentration_cfu_ml":         r["concentration_cfu_ml"],
-                "sd_event_count":               len(sd_events),
-                "sd_event_timepoints_min":      ";".join(str(int(t)) for t in sd_events),
-                "slope_event_count":            len(slope_events),
-                "slope_event_timepoints_min":   ";".join(str(int(t)) for t in slope_events),
-                "slope_total_score":            round(sum(sl["weighted_scores"]), 2),
-            })
+            writer.writerow([
+                r["name"],
+                r["concentration_cfu_ml"],
+                len(sd_events),
+                ";".join(str(int(t)) for t in sd_events),
+                r["sd_detected"],
+                int(r["sd_first_detection_min"]) if r.get("sd_first_detection_min") is not None else "",
+                len(slope_events),
+                ";".join(str(int(t)) for t in slope_events),
+                r["slope_detected"],
+                int(r["slope_first_detection_min"]) if r.get("slope_first_detection_min") is not None else "",
+                round(r.get("slope_total_score", 0.0), 4),
+                round(r.get("total_detection_score", 0.0), 4),
+                r.get("concordance_status", ""),
+                r.get("concordance_discordance_min", ""),
+            ])
+
     print(f"  Saved: {path}")
 
 
-# ---------------------------------------------------------------------------
+# =============================================================================
+# Total detection score sheet
+# =============================================================================
+
+def print_total_detection_table(results: list[dict]):
+    """Print per-group summary of total_detection_score and concordance."""
+    W_GROUP = 36
+    W_VAL   = 18
+    W_TOTAL = 14
+    W_CONC  = 24
+
+    header = (
+        _col("Group", W_GROUP)
+        + _col("SD event count", W_VAL)
+        + _col("Slope total score", W_VAL)
+        + _col("TOTAL score", W_TOTAL)
+        + _col("Concordance", W_CONC)
+        + _col("Load tier", 24)
+    )
+    sep = "-" * len(header)
+
+    print()
+    print("=" * len(sep))
+    print("  TOTAL DETECTION SCORE  =  SD event count  +  slope total weighted score")
+    print("=" * len(sep))
+    print(header)
+    print(sep)
+
+    for r in results:
+        conc_status = r.get("concordance_status", "—")
+        disc = r.get("concordance_discordance_min")
+        conc_str = conc_status if disc is None else f"{conc_status} ({int(disc)} min)"
+        print(
+            _col(r["name"], W_GROUP)
+            + _col(str(r.get("sd_event_count", 0)), W_VAL)
+            + _col(_fmt_val(r.get("slope_total_score"), 2), W_VAL)
+            + _col(_fmt_val(r.get("total_detection_score"), 2), W_TOTAL)
+            + _col(conc_str, W_CONC)
+            + _col(r.get("load_tier", "—"), 24)
+        )
+
+    print(sep)
+    print()
+
+
+def save_total_detection_csv(results: list[dict], out_dir: str):
+    """
+    Save total detection scores — two sections in one file:
+
+    Section 1 — per-timepoint breakdown: one row per group × timepoint showing
+                 SD flag, slope score, timepoint contribution, and cumulative total.
+    Section 2 — per-group summary: totals, kinetic metrics, and concordance.
+    """
+    path = os.path.join(out_dir, "total_detection_score.csv")
+    threshold = config.SLOPE_WEIGHTED_SCORE_THRESHOLD
+
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+
+        # ── Section 1: Per-timepoint breakdown ────────────────────────────────
+        writer.writerow(["# SECTION 1 — PER-TIMEPOINT BREAKDOWN"])
+        writer.writerow([
+            "# sd_flag=1 when SD criteria met at that timepoint",
+            "# slope_score=weighted slope score at that timepoint (0–6)",
+            "# contribution=sd_flag + slope_score",
+            "# cumulative=running total from t=0",
+        ])
+        writer.writerow([
+            "group", "concentration_cfu_ml", "time_min",
+            "sd_flag", "slope_score", "contribution", "cumulative_total",
+        ])
+
+        for r in results:
+            sd = r["sd_result"]
+            sl = r["slope_result"]
+            sd_flags     = list(sd.get("detection_flags", []))
+            slope_scores = list(sl.get("weighted_scores", []))
+            times        = sd["times"]
+            n = len(times)
+            sd_flags     += [0]   * (n - len(sd_flags))
+            slope_scores += [0.0] * (n - len(slope_scores))
+
+            cumulative = 0.0
+            for i, t in enumerate(times):
+                sd_val   = int(bool(sd_flags[i]))
+                sl_val   = float(slope_scores[i])
+                contrib  = sd_val + sl_val
+                cumulative += contrib
+                writer.writerow([
+                    r["name"],
+                    r["concentration_cfu_ml"],
+                    int(t),
+                    sd_val,
+                    round(sl_val, 4),
+                    round(contrib, 4),
+                    round(cumulative, 4),
+                ])
+
+        # ── Section 2: Per-group summary ──────────────────────────────────────
+        writer.writerow([])
+        writer.writerow(["# SECTION 2 — PER-GROUP SUMMARY"])
+        writer.writerow([
+            "group", "concentration_cfu_ml",
+            "sd_event_count", "slope_total_score", "total_detection_score",
+            "sd_detected", "slope_detected",
+            "concordance_status", "concordance_discordance_min",
+            "load_tier",
+            "rg_auc", "rb_auc", "gb_auc",
+            "time_to_ratio_threshold_min",
+            "rate_of_change_rg",
+        ])
+        for r in results:
+            writer.writerow([
+                r["name"],
+                r["concentration_cfu_ml"],
+                r.get("sd_event_count", ""),
+                round(r.get("slope_total_score", 0.0), 4) if r.get("slope_total_score") is not None else "",
+                round(r.get("total_detection_score", 0.0), 4) if r.get("total_detection_score") is not None else "",
+                r.get("sd_detected", ""),
+                r.get("slope_detected", ""),
+                r.get("concordance_status", ""),
+                r.get("concordance_discordance_min", ""),
+                r.get("load_tier", ""),
+                round(r["rg_auc"], 2) if r.get("rg_auc") is not None else "",
+                round(r["rb_auc"], 2) if r.get("rb_auc") is not None else "",
+                round(r["gb_auc"], 2) if r.get("gb_auc") is not None else "",
+                int(r["time_to_ratio_threshold"]) if r.get("time_to_ratio_threshold") is not None else "never",
+                round(r["rate_of_change_rg"], 6) if r.get("rate_of_change_rg") is not None else "",
+            ])
+
+    print(f"  Saved: {path}")
+
+
+# =============================================================================
 # Combined entry point
-# ---------------------------------------------------------------------------
+# =============================================================================
 
 def print_and_save_tables(results: list[dict], out_dir: str):
-    """Print both tables to the console and save them as CSVs."""
+    """Print all tables to the console and save them as CSVs."""
     print_slope_table(results)
     save_slope_csv(results, out_dir)
     print_sd_table(results)
     save_sd_csv(results, out_dir)
     print_detection_events(results)
     save_detection_events_csv(results, out_dir)
+    print_total_detection_table(results)
+    save_total_detection_csv(results, out_dir)
