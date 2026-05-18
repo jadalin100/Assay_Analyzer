@@ -114,6 +114,48 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
 
     min_consec: int = max(1, getattr(config, "SLOPE_MIN_CONSECUTIVE", 2))
 
+    # Camera artifact handling.
+    # When artifact timepoints exist (set by main.py from the reagent reference
+    # single-frame jump detector), both the baseline and the scoring loop must
+    # avoid those frames so the contaminated spike does not distort the angular
+    # comparison that drives the slope algorithm.
+    #
+    # Baseline strategy:
+    #   Normal (no artifact): use first SLOPE_BASELINE_POINTS timepoints as
+    #   designed — a confirmed stable early-assay window.
+    #   Artifact present: filter artifact indices OUT of the baseline so the
+    #   baseline slope is computed only on clean, uncontaminated frames.
+    #   If fewer than 3 clean baseline frames remain, extend the baseline window
+    #   forward (past the artifact) until 3+ clean frames are collected.
+    #
+    # Detection loop: suppress scoring at any artifact timepoint and reset the
+    # consecutive counter (same pattern as the SD algorithm window reset).
+    artifact_times: set = set(rgb_data.get("artifact_timepoints", []))
+
+    # Build the clean baseline index list, extending if necessary.
+    def _clean_baseline_indices(times, artifact_times, bp):
+        """
+        Return a list of up to bp indices that are not in artifact_times,
+        drawn from the earliest timepoints.  If the first bp timepoints don't
+        yield enough clean frames, extend forward until bp clean indices exist.
+        """
+        clean = []
+        for idx in range(len(times)):
+            if times[idx] not in artifact_times:
+                clean.append(idx)
+            if len(clean) >= bp:
+                break
+        return clean
+
+    baseline_indices = _clean_baseline_indices(times, artifact_times, bp)
+    b_times_clean = [times[i] for i in baseline_indices]
+
+    # Pre-compute baseline slopes once (fixed for all detection timepoints).
+    baseline_slopes: dict[str, float] = {}
+    for key, ch_values in channels.items():
+        b_vals_clean = [ch_values[i] for i in baseline_indices]
+        baseline_slopes[key], _ = _linear_fit(b_times_clean, b_vals_clean)
+
     weighted_scores: list[float] = []
     detected = False
     first_detection_min = None
@@ -121,28 +163,37 @@ def run_slope_algorithm(rgb_data: dict) -> dict:
     run_start_min = None     # time of the first frame in the current run
 
     for i in range(n):
+        # Suppress scoring at artifact timepoints and reset consecutive counter.
+        if times[i] in artifact_times:
+            weighted_scores.append(0.0)
+            consecutive = 0
+            run_start_min = None
+            continue
+
         if i < effective_min:
             weighted_scores.append(0.0)
             consecutive = 0
             run_start_min = None
             continue
 
-        # Fixed baseline: always the first bp timepoints
-        baseline_end = min(bp, i)
-        b_times = times[:baseline_end]
-
-        # Sliding current window: last cp points up to and including i
-        cur_start = max(0, i + 1 - cp)
-        c_times   = times[cur_start: i + 1]
+        # Sliding current window: last cp points up to and including i,
+        # excluding any artifact timepoints.
+        cur_indices = [
+            j for j in range(max(0, i + 1 - cp), i + 1)
+            if times[j] not in artifact_times
+        ]
+        if len(cur_indices) < 2:
+            weighted_scores.append(0.0)
+            continue
+        c_times = [times[j] for j in cur_indices]
 
         total_score = 0
-        for ch_values in channels.values():
-            b_vals = ch_values[:baseline_end]
-            c_vals = ch_values[cur_start: i + 1]
+        for key, ch_values in channels.items():
+            c_vals = [ch_values[j] for j in cur_indices]
 
-            baseline_slope, _  = _linear_fit(b_times, b_vals)
-            current_slope, r2  = _linear_fit(c_times, c_vals)
-            ch_mean            = float(np.mean(c_vals)) if c_vals else 0.0
+            baseline_slope = baseline_slopes.get(key, 0.0)
+            current_slope, r2 = _linear_fit(c_times, c_vals)
+            ch_mean = float(np.mean(c_vals)) if c_vals else 0.0
 
             total_score += _channel_score(baseline_slope, current_slope, r2, ch_mean)
 

@@ -348,9 +348,27 @@ def main():
     if scan_source:
         rg_ref = [v for v in scan_source["rgb_data"].get("RG_ratio", []) if v is not None]
         t_ref  = scan_source["rgb_data"].get("times", [])
-        for i in range(1, len(rg_ref)):
-            if abs(rg_ref[i] - rg_ref[i - 1]) >= artifact_threshold:
-                ref_artifact_times.add(t_ref[i] if i < len(t_ref) else None)
+
+        # Find all frame-to-frame jumps exceeding the artifact threshold.
+        jump_idxs = [i for i in range(1, len(rg_ref))
+                     if abs(rg_ref[i] - rg_ref[i - 1]) >= artifact_threshold]
+
+        # Mark the FULL contamination window, not just the endpoints.
+        # A spike at index i_start and recovery at i_end leave ALL frames between
+        # them elevated — the camera AE hasn't settled yet even though the
+        # per-frame deltas look small.  Marking only the spike and recovery frames
+        # (abs(delta) >= threshold) lets the intermediate frames contaminate the
+        # slope baseline.
+        # Strategy: for each consecutive spike→recovery pair, mark every frame from
+        # the spike through the recovery (inclusive).  Without a following jump the
+        # spike frame itself is still marked.
+        for k, j_idx in enumerate(jump_idxs):
+            ref_artifact_times.add(t_ref[j_idx] if j_idx < len(t_ref) else None)
+            if k + 1 < len(jump_idxs):
+                next_j = jump_idxs[k + 1]
+                for between_idx in range(j_idx + 1, next_j):
+                    t_between = t_ref[between_idx] if between_idx < len(t_ref) else None
+                    ref_artifact_times.add(t_between)
 
     # Also scan each sample for jumps (catches cases where reference is missing)
     per_sample_artifact_times: dict[str, set] = {}
@@ -358,13 +376,24 @@ def main():
     for s in samples:
         rg    = [v for v in s["rgb_data"].get("RG_ratio", []) if v is not None]
         times = s["rgb_data"].get("times", [])
+
+        # Find jump indices in this sample.
+        s_jump_idxs = [i for i in range(1, len(rg))
+                       if abs(rg[i] - rg[i - 1]) >= artifact_threshold]
+
         sample_artifacts: set = set()
-        for i in range(1, len(rg)):
-            delta = abs(rg[i] - rg[i - 1])
-            if delta >= artifact_threshold:
-                t_hit = times[i] if i < len(times) else None
-                sample_artifacts.add(t_hit)
-                artifact_warnings.append((s["name"], t_hit, delta))
+        for k, j_idx in enumerate(s_jump_idxs):
+            t_hit = times[j_idx] if j_idx < len(times) else None
+            sample_artifacts.add(t_hit)
+            delta = abs(rg[j_idx] - rg[j_idx - 1])
+            artifact_warnings.append((s["name"], t_hit, delta))
+            # Expand to the full contamination window between consecutive jumps.
+            if k + 1 < len(s_jump_idxs):
+                next_j = s_jump_idxs[k + 1]
+                for between_idx in range(j_idx + 1, next_j):
+                    t_between = times[between_idx] if between_idx < len(times) else None
+                    sample_artifacts.add(t_between)
+
         per_sample_artifact_times[s["name"]] = sample_artifacts
 
     # Combine: reference-detected artifacts apply to everyone (camera-wide event).

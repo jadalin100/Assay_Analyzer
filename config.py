@@ -228,7 +228,9 @@ ALPHA = 0.05
 # a conservative threshold that should not fire on noise.
 # Calibrate after first normalized trial: raise if negatives briefly touch 1.10,
 # lower if true positives are slow to reach it.
-RATIO_THRESHOLD = 1.10
+RATIO_THRESHOLD = 1.50   # raised from 1.10 — artifact inflated baselines to ~1.4 for
+                         # negatives in the unlocked-AE trial; re-evaluate after first
+                         # locked-exposure trial where negatives should stay near 1.0
 
 # -----------------------------------------------------------------------------
 # Output
