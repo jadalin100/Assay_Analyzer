@@ -170,10 +170,13 @@ def plot_per_group(results: list[dict], out_dir: str):
         conc_str = "0 (control)" if conc == 0 else f"{conc:.0e} CFU/mL"
         sd_det = "DETECTED" if r["sd_detected"] else "not detected"
         sl_det = "DETECTED" if r["slope_detected"] else "not detected"
+        is_pos = r.get("ground_truth_positive", False)
+        clinical_str = "CLINICAL POSITIVE (≥10⁵ CFU/mL)" if is_pos else "CLINICAL NEGATIVE (<10⁵ CFU/mL)"
+        title_color = "#cc0000" if is_pos else "#003399"
         fig.suptitle(
-            f"Group: {name}   |   Concentration: {conc_str}\n"
+            f"Group: {name}   |   Concentration: {conc_str}   |   {clinical_str}\n"
             f"SD algorithm: {sd_det}   |   Slope algorithm: {sl_det}",
-            fontsize=12, fontweight="bold", y=0.98,
+            fontsize=12, fontweight="bold", y=0.98, color=title_color,
         )
 
         # ── (0,0) RGB traces ──────────────────────────────────────────────────
@@ -287,11 +290,25 @@ def plot_per_group(results: list[dict], out_dir: str):
 
         ttr = r.get("time_to_ratio_threshold")
         ttr_str = f"{int(ttr)} min" if ttr is not None else "never"
-        auc_str = f"{r['ratio_auc']:.1f}" if r.get("ratio_auc") is not None else "N/A"
+        rg_auc = r.get("rg_auc")
+        rb_auc = r.get("rb_auc")
+        gb_auc = r.get("gb_auc")
+        auc_rg_str = f"{rg_auc:.1f}" if rg_auc is not None else "N/A"
+        auc_rb_str = f"{rb_auc:.1f}" if rb_auc is not None else "N/A"
+        auc_gb_str = f"{gb_auc:.1f}" if gb_auc is not None else "N/A"
         tds_str = f"{r['total_detection_score']:.2f}" if r.get("total_detection_score") is not None else "N/A"
+        roc = r.get("rate_of_change_rg")
+        roc_str = f"{roc:.5f} ratio/min" if roc is not None else "N/A"
+        concordance = r.get("concordance_status", "N/A")
+        disc_min = r.get("concordance_discordance_min")
+        disc_str = f" ({disc_min:.0f} min gap)" if disc_min is not None else ""
+        clinical_label = "CLINICAL POSITIVE (≥10⁵ CFU/mL)" if r.get("ground_truth_positive") else "CLINICAL NEGATIVE (<10⁵ CFU/mL)"
+        box_color = "#ffe6e6" if r.get("ground_truth_positive") else "#e6f0ff"
+
         summary_lines = [
             f"Group:                {name}",
             f"Concentration:        {conc_str}",
+            f"Clinical status:      {clinical_label}",
             "",
             f"SD algorithm:         {sd_det}",
         ]
@@ -309,9 +326,13 @@ def plot_per_group(results: list[dict], out_dir: str):
             "",
             f"Total detection score:{tds_str}",
             f"Load tier:            {r.get('load_tier', '—')}",
+            f"Concordance:          {concordance}{disc_str}",
             "",
-            f"Ratio AUC (R/G):      {auc_str}",
+            f"AUC  R/G:             {auc_rg_str}",
+            f"AUC  R/B:             {auc_rb_str}",
+            f"AUC  G/B:             {auc_gb_str}",
             f"Time to threshold:    {ttr_str}",
+            f"Rate of change (R/G): {roc_str}",
             "",
             f"Final R/G ratio:      {_fmt(r.get('final_RG_ratio'))}",
             f"Final R/B ratio:      {_fmt(r.get('final_RB_ratio'))}",
@@ -322,7 +343,7 @@ def plot_per_group(results: list[dict], out_dir: str):
             transform=ax.transAxes,
             fontsize=10, verticalalignment="top",
             fontfamily="monospace",
-            bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.8),
+            bbox=dict(boxstyle="round", facecolor=box_color, alpha=0.8),
         )
         axes[3][1].axis("off")
 
@@ -343,24 +364,50 @@ def plot_total_detection_scores(results: list[dict], out_dir: str):
     sd_vals  = [r.get("sd_event_count", 0) for r in sorted_results]
     sl_vals  = [r.get("slope_total_score", 0.0) for r in sorted_results]
     totals   = [r.get("total_detection_score", 0.0) for r in sorted_results]
+    gt       = [r.get("ground_truth_positive", False) for r in sorted_results]
 
     x = np.arange(len(labels))
     fig, ax = plt.subplots(figsize=(max(8, len(labels) * 1.4), 5))
 
-    bars_sd = ax.bar(x, sd_vals, label="SD event count", color="#4C9BE8")
-    bars_sl = ax.bar(x, sl_vals, bottom=sd_vals, label="Slope total score", color="#E87B4C")
+    # Shade background: blue for clinical negatives, red for clinical positives
+    for i, is_pos in enumerate(gt):
+        ax.axvspan(i - 0.5, i + 0.5,
+                   color="#ffe6e6" if is_pos else "#e6f0ff",
+                   alpha=0.4, zorder=0)
+
+    # Draw a dividing line between the last negative and first positive group
+    neg_indices = [i for i, p in enumerate(gt) if not p]
+    pos_indices = [i for i, p in enumerate(gt) if p]
+    if neg_indices and pos_indices:
+        boundary = (max(neg_indices) + min(pos_indices)) / 2
+        ax.axvline(boundary, color="black", lw=1.5, ls="--", alpha=0.6,
+                   label=f"Clinical threshold (10⁵ CFU/mL)")
+
+    bars_sd = ax.bar(x, sd_vals, label="SD event count", color="#4C9BE8", zorder=2)
+    bars_sl = ax.bar(x, sl_vals, bottom=sd_vals, label="Slope total score",
+                     color="#E87B4C", zorder=2)
 
     # Annotate total above each bar
     for i, total in enumerate(totals):
         ax.text(x[i], total + 0.3, f"{total:.1f}", ha="center", va="bottom", fontsize=8)
 
+    # Axis labels: mark positives/negatives
+    tick_labels = []
+    for lbl, is_pos in zip(labels, gt):
+        marker = "▲" if is_pos else "▽"
+        tick_labels.append(f"{marker} {lbl}")
+
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, rotation=30, ha="right", fontsize=8)
+    ax.set_xticklabels(tick_labels, rotation=30, ha="right", fontsize=8)
     ax.set_ylabel("Score")
-    ax.set_title("Total Detection Score per Group\n(SD event count + slope weighted score)",
-                 fontweight="bold")
+    ax.set_title(
+        "Total Detection Score per Group\n"
+        "(SD event count + slope weighted score)   "
+        "▽ = clinical negative   ▲ = clinical positive",
+        fontweight="bold"
+    )
     ax.legend()
-    ax.grid(axis="y", alpha=0.3)
+    ax.grid(axis="y", alpha=0.3, zorder=1)
     plt.tight_layout()
     _save(fig, os.path.join(out_dir, "total_detection_scores.png"))
 
