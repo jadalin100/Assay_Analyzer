@@ -377,22 +377,51 @@ def main():
         rg    = [v for v in s["rgb_data"].get("RG_ratio", []) if v is not None]
         times = s["rgb_data"].get("times", [])
 
-        # Find jump indices in this sample.
-        s_jump_idxs = [i for i in range(1, len(rg))
-                       if abs(rg[i] - rg[i - 1]) >= artifact_threshold]
+        # Separate positive spikes (+) from negative recoveries (−).
+        # A camera AE event is a positive spike followed by a negative recovery.
+        # Real bacterial conversion is a large positive jump WITHOUT a following
+        # negative recovery (the ratio stays elevated or keeps rising).
+        #
+        # Window expansion ONLY applies to spike(+) → recovery(−) pairs.
+        # A positive jump that has no subsequent negative recovery is left unmarked
+        # (it is genuine biology, not a camera event).
+        # An unmatched recovery (no preceding spike) marks just that single frame.
+        spike_idxs    = [i for i in range(1, len(rg)) if rg[i] - rg[i - 1] >=  artifact_threshold]
+        recovery_idxs = [i for i in range(1, len(rg)) if rg[i] - rg[i - 1] <= -artifact_threshold]
 
         sample_artifacts: set = set()
-        for k, j_idx in enumerate(s_jump_idxs):
-            t_hit = times[j_idx] if j_idx < len(times) else None
-            sample_artifacts.add(t_hit)
-            delta = abs(rg[j_idx] - rg[j_idx - 1])
-            artifact_warnings.append((s["name"], t_hit, delta))
-            # Expand to the full contamination window between consecutive jumps.
-            if k + 1 < len(s_jump_idxs):
-                next_j = s_jump_idxs[k + 1]
-                for between_idx in range(j_idx + 1, next_j):
+        matched_recoveries: set = set()
+
+        for spike_idx in spike_idxs:
+            # Find the earliest unmatched recovery that follows this spike.
+            next_rec = next(
+                (r for r in recovery_idxs if r > spike_idx and r not in matched_recoveries),
+                None,
+            )
+            if next_rec is not None:
+                # Classic AE spike → recovery: mark the full contamination window.
+                t_spike = times[spike_idx] if spike_idx < len(times) else None
+                sample_artifacts.add(t_spike)
+                artifact_warnings.append((s["name"], t_spike,
+                                          abs(rg[spike_idx] - rg[spike_idx - 1])))
+                matched_recoveries.add(next_rec)
+                t_rec = times[next_rec] if next_rec < len(times) else None
+                sample_artifacts.add(t_rec)
+                for between_idx in range(spike_idx + 1, next_rec):
                     t_between = times[between_idx] if between_idx < len(times) else None
                     sample_artifacts.add(t_between)
+            # If no recovery follows, this is likely real bacterial conversion.
+            # Do NOT mark it — marking it would reset the SD rolling window and
+            # suppress detection of genuine colour change.
+
+        # Mark any recovery that had no paired spike (e.g. reference caught the spike,
+        # but the per-sample delta was below threshold at the spike frame).
+        for rec_idx in recovery_idxs:
+            if rec_idx not in matched_recoveries:
+                t_rec = times[rec_idx] if rec_idx < len(times) else None
+                sample_artifacts.add(t_rec)
+                artifact_warnings.append((s["name"], t_rec,
+                                          abs(rg[rec_idx] - rg[rec_idx - 1])))
 
         per_sample_artifact_times[s["name"]] = sample_artifacts
 
