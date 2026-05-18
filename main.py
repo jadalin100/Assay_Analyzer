@@ -328,28 +328,68 @@ def main():
     # A single-frame R/G jump larger than ARTIFACT_JUMP_THRESHOLD almost certainly
     # reflects a camera auto-exposure or white-balance change, not bacterial conversion.
     # Real bacterial conversion is gradual (~0.01–0.05 ratio units per 5-min frame).
-    # Flag any group where a consecutive-frame delta exceeds the threshold so the
-    # user can recheck whether AE/AF was locked.
+    #
+    # Artifact timepoints are detected primarily from the reagent reference (most
+    # reliable baseline — should stay flat).  Any detected artifact timepoints are
+    # stamped onto all sample rgb_data dicts so the SD and slope algorithms can
+    # reset their rolling windows and suppress false detections around those frames.
     artifact_threshold = getattr(config, "ARTIFACT_JUMP_THRESHOLD", 0.30)
+
+    # Collect artifact timepoints from the reagent reference if available,
+    # otherwise fall back to scanning each sample individually.
+    ref_artifact_times: set = set()
+    ref_sample_for_artifact = next(
+        (s for s in samples if _is_reagent_reference(s["name"])), None
+    )
+    # If reagent reference was already removed from samples (post-normalization),
+    # re-detect from the normalized samples using a tighter per-sample scan.
+    scan_source = ref_sample_for_artifact or None
+
+    if scan_source:
+        rg_ref = [v for v in scan_source["rgb_data"].get("RG_ratio", []) if v is not None]
+        t_ref  = scan_source["rgb_data"].get("times", [])
+        for i in range(1, len(rg_ref)):
+            if abs(rg_ref[i] - rg_ref[i - 1]) >= artifact_threshold:
+                ref_artifact_times.add(t_ref[i] if i < len(t_ref) else None)
+
+    # Also scan each sample for jumps (catches cases where reference is missing)
+    per_sample_artifact_times: dict[str, set] = {}
     artifact_warnings = []
     for s in samples:
-        rg = [v for v in s["rgb_data"].get("RG_ratio", []) if v is not None]
+        rg    = [v for v in s["rgb_data"].get("RG_ratio", []) if v is not None]
         times = s["rgb_data"].get("times", [])
+        sample_artifacts: set = set()
         for i in range(1, len(rg)):
             delta = abs(rg[i] - rg[i - 1])
             if delta >= artifact_threshold:
-                artifact_warnings.append(
-                    (s["name"], times[i] if i < len(times) else "?", delta)
-                )
-    if artifact_warnings:
+                t_hit = times[i] if i < len(times) else None
+                sample_artifacts.add(t_hit)
+                artifact_warnings.append((s["name"], t_hit, delta))
+        per_sample_artifact_times[s["name"]] = sample_artifacts
+
+    # Combine: reference-detected artifacts apply to everyone (camera-wide event).
+    # Sample-specific artifacts apply only to that sample.
+    all_detected = ref_artifact_times.union(*per_sample_artifact_times.values()) \
+        if per_sample_artifact_times else ref_artifact_times
+
+    for s in samples:
+        combined = ref_artifact_times | per_sample_artifact_times.get(s["name"], set())
+        s["rgb_data"]["artifact_timepoints"] = combined
+
+    if all_detected:
+        unique_warnings = sorted(set((t, d) for _, t, d in artifact_warnings), key=lambda x: x[0] or 0)
         print(
             "\n  !! CAMERA ARTIFACT WARNING — large single-frame R/G jumps detected.\n"
             "     These most likely reflect an auto-exposure or white-balance change,\n"
             "     NOT bacterial conversion.  Verify that AE/AF was locked before capture.\n"
-            "     Affected groups and timepoints:\n"
+            f"     Artifact timepoints: {sorted(t for t in all_detected if t is not None)}\n"
+            "     SD rolling windows will be RESET at these timepoints to prevent\n"
+            "     artifact-driven false detections.\n"
         )
-        for gname, t, d in artifact_warnings:
+        for gname, t, d in artifact_warnings[:10]:   # cap output to 10 lines
             print(f"     {gname:<35}  t={t} min  Δ R/G = {d:.3f}")
+        if len(artifact_warnings) > 10:
+            print(f"     ... and {len(artifact_warnings) - 10} more")
         print(
             f"\n     Threshold: ARTIFACT_JUMP_THRESHOLD = {artifact_threshold} "
             f"(edit in config.py if needed)\n"

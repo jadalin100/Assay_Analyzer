@@ -55,6 +55,15 @@ def run_sd_algorithm(rgb_data: dict) -> dict:
 
     min_consec: int = max(1, getattr(config, "SD_MIN_CONSECUTIVE", 2))
 
+    # Artifact timepoints to exclude from detection and from the rolling window.
+    # These are set by main.py when a single-frame R/G jump exceeds
+    # ARTIFACT_JUMP_THRESHOLD in the reagent reference — almost certainly a
+    # camera auto-exposure event, not biology.
+    # At an artifact timepoint the rolling window is reset (prior contaminated
+    # values discarded) so that post-artifact CVs reflect only clean data.
+    artifact_times: set = set(rgb_data.get("artifact_timepoints", []))
+    window_reset_at: int | None = None   # index at which the window was last reset
+
     ratio_R, ratio_G, ratio_B = [], [], []
     ratio_RG, ratio_RB, ratio_GB = [], [], []
     detection_flags = []   # True at timepoint i if SD criteria met (independent of prior detection)
@@ -64,7 +73,17 @@ def run_sd_algorithm(rgb_data: dict) -> dict:
     run_start_min = None   # time of the first frame in the current run
 
     for i in range(n):
-        start = max(0, i + 1 - window)
+        # If this timepoint is flagged as a camera artifact, reset the rolling
+        # window — prior values are contaminated and must not contribute to CV.
+        if times[i] in artifact_times:
+            window_reset_at = i
+            consecutive = 0
+            run_start_min = None
+
+        # Rolling window start: either the normal lookback or the reset point,
+        # whichever is more recent.
+        normal_start = max(0, i + 1 - window)
+        start = max(normal_start, window_reset_at) if window_reset_at is not None else normal_start
 
         # Primary channels — unweighted SD/mean (diagnostic only, not used for detection)
         rr = _sd_ratio(R[start: i + 1])
@@ -87,8 +106,9 @@ def run_sd_algorithm(rgb_data: dict) -> dict:
         # to detection — too sensitive to lighting and JPEG compression noise.
         # Require at least 6 points (25 min at 5-min intervals) before detection
         # can fire — lets initial auto-exposure stabilisation pass through.
+        # Also suppress detection at artifact timepoints themselves.
         points_in_window = (i + 1) - start
-        if points_in_window >= 6:
+        if points_in_window >= 6 and times[i] not in artifact_times:
             event = _detection_triggered([rrg, rrb, rgb_], thr_all, thr_two)
         else:
             event = False
