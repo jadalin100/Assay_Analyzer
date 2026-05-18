@@ -120,7 +120,11 @@ def _infer_concentration(folder_name: str) -> float:
     if match:
         return 10.0 ** int(match.group(1))
 
-    # Step 2 — keyword prefix fallback (for controls)
+    # Step 2 — folder starts with a bare "0" → 0 CFU/mL (e.g. "0 (Sterile Negative Control)")
+    if re.match(r'^0\b', name):
+        return 0.0
+
+    # Step 3 — keyword prefix fallback (for controls)
     for key in sorted(config.CONCENTRATIONS.keys(), key=len, reverse=True):
         if name.startswith(key.lower()):
             return config.CONCENTRATIONS[key]
@@ -128,6 +132,7 @@ def _infer_concentration(folder_name: str) -> float:
     raise ValueError(
         f"Cannot infer concentration from folder name: '{folder_name}'\n"
         f"  Include '10^N' anywhere in the name (e.g. 'Low 10^5', 'Positive Control 10^8'), or\n"
+        f"  start with '0' for a sterile/zero-concentration control, or\n"
         f"  rename to start with one of: {list(config.CONCENTRATIONS.keys())}\n"
         f"  or add a new entry to CONCENTRATIONS in config.py"
     )
@@ -318,6 +323,39 @@ def main():
         sys.exit(1)
 
     print(f"\n  Loaded {len(samples)} samples.")
+
+    # ── Stage 1a: Camera artifact detection ───────────────────────────────────
+    # A single-frame R/G jump larger than ARTIFACT_JUMP_THRESHOLD almost certainly
+    # reflects a camera auto-exposure or white-balance change, not bacterial conversion.
+    # Real bacterial conversion is gradual (~0.01–0.05 ratio units per 5-min frame).
+    # Flag any group where a consecutive-frame delta exceeds the threshold so the
+    # user can recheck whether AE/AF was locked.
+    artifact_threshold = getattr(config, "ARTIFACT_JUMP_THRESHOLD", 0.30)
+    artifact_warnings = []
+    for s in samples:
+        rg = [v for v in s["rgb_data"].get("RG_ratio", []) if v is not None]
+        times = s["rgb_data"].get("times", [])
+        for i in range(1, len(rg)):
+            delta = abs(rg[i] - rg[i - 1])
+            if delta >= artifact_threshold:
+                artifact_warnings.append(
+                    (s["name"], times[i] if i < len(times) else "?", delta)
+                )
+    if artifact_warnings:
+        print(
+            "\n  !! CAMERA ARTIFACT WARNING — large single-frame R/G jumps detected.\n"
+            "     These most likely reflect an auto-exposure or white-balance change,\n"
+            "     NOT bacterial conversion.  Verify that AE/AF was locked before capture.\n"
+            "     Affected groups and timepoints:\n"
+        )
+        for gname, t, d in artifact_warnings:
+            print(f"     {gname:<35}  t={t} min  Δ R/G = {d:.3f}")
+        print(
+            f"\n     Threshold: ARTIFACT_JUMP_THRESHOLD = {artifact_threshold} "
+            f"(edit in config.py if needed)\n"
+        )
+    else:
+        print("  No single-frame artifact jumps detected  ✓")
 
     # ── Stage 1b: Timepoint count validation ──────────────────────────────────
     time_counts = {s["name"]: len(s["rgb_data"]["times"]) for s in samples}

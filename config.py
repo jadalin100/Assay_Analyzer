@@ -60,6 +60,16 @@ COMPUTE_RB_RATIO = True         # R / B  (strong signal: red rises, blue falls s
 COMPUTE_GB_RATIO = True         # G / B  (complementary; G falls as resazurin converts)
 
 # -----------------------------------------------------------------------------
+# Camera artifact detection
+# -----------------------------------------------------------------------------
+# Real bacterial conversion changes the R/G ratio gradually (~0.01–0.05 per 5-min frame).
+# A single-frame delta larger than this threshold is almost certainly a camera
+# auto-exposure or white-balance event, not biology.
+# The pipeline will print a warning listing the group and timepoint if this fires.
+# Set to None to disable the check entirely.
+ARTIFACT_JUMP_THRESHOLD = 0.30   # ratio units per 5-min frame
+
+# -----------------------------------------------------------------------------
 # Standard Deviation Algorithm (Malanoski et al., 2016)
 # -----------------------------------------------------------------------------
 # SD_WINDOW = 9 → rolling window of 45 min (9 × 5-min intervals at CAPTURE_INTERVAL_MIN=5).
