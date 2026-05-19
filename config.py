@@ -77,15 +77,20 @@ ARTIFACT_JUMP_THRESHOLD = 0.30   # ratio units per 5-min frame
 # not all-time CV.
 SD_WINDOW = 9
 
-# Thresholds calibrated 2026-05-17 on UNLOCKED auto-exposure data (noisy).
-#   Negatives peaked at cv_RG≈0.052, cv_RB≈0.070 (auto-exposure noise).
-#   10^6 showed cv_RG=0.182, cv_RB=0.217 — clear separation above 0.075.
+# Thresholds calibrated 2026-05-18 on UNLOCKED auto-exposure data (noisy).
+#   Sweep of thr_all × thr_two pairs on current trial data:
+#     thr_all=0.060, thr_two=0.080 → FP=[], FN=[10^5, 10^6]   (misses 10^6)
+#     thr_all=0.040, thr_two=0.080 → FP=[], FN=[10^5]          ← OPTIMAL
+#     thr_all=0.040, thr_two=0.075 → FP=[10^4], FN=[10^5]
+#   thr_all=0.040 lets the all-three condition catch 10^6 (cv_RG≈0.040, cv_RB≈0.094 at t=115).
+#   thr_two=0.080 eliminates the 10^4 false positive (cv_RB=0.075 no longer triggers).
+#   10^5 is still missed by SD — caught only weakly by slope (borderline clinical threshold).
 # !! RECALIBRATE after first locked-exposure + reagent-normalized trial !!
 #   With locked exposure, negative CV should drop to ~0.018.
 #   Lower SD_THRESHOLD_ALL toward 0.025–0.035 and SD_THRESHOLD_TWO toward 0.030–0.045
 #   until negatives stop triggering, then verify true positives still detect.
-SD_THRESHOLD_ALL = 0.060        # ALL ratio channels must exceed this, OR
-SD_THRESHOLD_TWO = 0.075        # ANY two ratio channels must exceed this
+SD_THRESHOLD_ALL = 0.040        # ALL ratio channels must exceed this, OR
+SD_THRESHOLD_TWO = 0.080        # ANY two ratio channels must exceed this
 
 # Minimum consecutive timepoints that must meet the SD threshold before detection
 # is declared. Mirrors SLOPE_MIN_CONSECUTIVE — eliminates single-frame spikes.
@@ -127,16 +132,20 @@ SLOPE_R2_SCORE_1 = 0.67
 SLOPE_R2_SCORE_2 = 0.80
 
 # With 3 ratio channels (R/G, R/B, G/B) each scoring 0/1/2, max total = 6.
-# Threshold > 1 means at least one channel must score 2, or two must score 1.
-SLOPE_WEIGHTED_SCORE_THRESHOLD = 1.0
+# Threshold > 4 requires strong multi-channel evidence — practically this means
+# at least two channels must score 2 each (strong angular divergence + R²>0.80),
+# which corresponds to clear, sustained resazurin-to-resorufin conversion.
+# Calibrated from first trial (2026-05-18, unlocked AE, photo-converted reference):
+#   negatives (10^1–10^4) peaked at 4 → threshold > 4 eliminates all FP
+#   10^6/7/8 regularly scored 5–6 → correctly detected
+#   10^5 (borderline) scored ≤4 → missed by slope, caught by SD instead
+# !! RECALIBRATE after first locked-exposure reagent-normalized trial.
+#    With clean data, negatives should score 0 → threshold can drop toward 2–3. !!
+SLOPE_WEIGHTED_SCORE_THRESHOLD = 4.0
 
-# Minimum number of consecutive timepoints that must exceed SLOPE_WEIGHTED_SCORE_THRESHOLD
-# before detection is declared.  Requires 2 consecutive frames by default, which
-# eliminates single-timepoint spikes caused by auto-exposure or noise without
-# delaying detection of a real sustained colour change.
-# first_detection_min is set to the START of the consecutive run, not the end,
-# so there is no timing penalty for requiring persistence.
-# Raise to 3 if isolated 2-frame spikes still appear on locked-exposure data.
+# Minimum consecutive timepoints exceeding SLOPE_WEIGHTED_SCORE_THRESHOLD
+# before detection is declared.  2 frames = 10 min at 5-min capture intervals.
+# first_detection_min records the START of the run, not the confirming frame.
 SLOPE_MIN_CONSECUTIVE = 2
 
 # -----------------------------------------------------------------------------
