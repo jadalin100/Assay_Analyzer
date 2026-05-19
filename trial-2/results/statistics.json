@@ -1,0 +1,110 @@
+{
+  "metrics": [
+    {
+      "metric": "total_detection_score",
+      "label": "Total detection score (SD event count + slope weighted score)",
+      "direction": "higher = stronger / earlier detection across both algorithms",
+      "groups": {
+        "10^1": [
+          6.0
+        ],
+        "10^2": [
+          31.0
+        ],
+        "10^3": [
+          3.0
+        ],
+        "10^4": [
+          34.0
+        ],
+        "10^5": [
+          4.0
+        ],
+        "10^6": [
+          28.0
+        ],
+        "10^7": [
+          59.0
+        ],
+        "10^8": [
+          56.0
+        ],
+        "0 (negative)": [
+          48.0
+        ]
+      },
+      "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
+      "test": "Kruskal-Wallis",
+      "statistic": 8.0,
+      "p_value": 0.43347012036670896,
+      "significant": false
+    },
+    {
+      "metric": "ratio_auc",
+      "label": "AUC of normalized R/G ratio (ratio\u00b7min)",
+      "direction": "higher = more/faster colour conversion",
+      "groups": {},
+      "note": "Fewer than 2 groups with data \u2014 no test performed."
+    },
+    {
+      "metric": "time_to_ratio_threshold",
+      "label": "Time to R/G \u2265 1.50 (min)",
+      "direction": "lower = faster conversion; groups that never cross are excluded",
+      "groups": {
+        "10^6": [
+          15.0
+        ],
+        "10^7": [
+          15.0
+        ],
+        "10^8": [
+          15.0
+        ]
+      },
+      "replication_warning": "Groups ['10^6', '10^7', '10^8'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
+      "test": "Kruskal-Wallis",
+      "statistic": NaN,
+      "p_value": NaN,
+      "significant": false
+    },
+    {
+      "metric": "final_RG_ratio",
+      "label": "Final normalized R/G ratio",
+      "direction": "higher = more conversion by end of assay",
+      "groups": {
+        "10^1": [
+          1.1113462549663515
+        ],
+        "10^2": [
+          1.2951292998974209
+        ],
+        "10^3": [
+          1.0998154664922966
+        ],
+        "10^4": [
+          1.084457263420611
+        ],
+        "10^5": [
+          1.3549044773882268
+        ],
+        "10^6": [
+          1.9066988016222375
+        ],
+        "10^7": [
+          2.696008769942434
+        ],
+        "10^8": [
+          1.7912482997965822
+        ],
+        "0 (negative)": [
+          1.0575034964117838
+        ]
+      },
+      "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
+      "test": "Kruskal-Wallis",
+      "statistic": 8.0,
+      "p_value": 0.43347012036670896,
+      "significant": false
+    }
+  ]
+}
