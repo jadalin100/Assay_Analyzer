@@ -11,9 +11,10 @@ venv/
 env/
 
 # Data and results (large files / experiment outputs)
-data/
-results/
-Photos/
+/data/
+/results/
+/Photos/
+/Trial #1 Photos/
 
 # macOS
 .DS_Store
