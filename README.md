@@ -8,6 +8,19 @@ Resazurin (Alamar Blue) shifts from blue to pink as metabolically active bacteri
 
 **Clinical threshold:** ≥ 10⁵ CFU/mL (standard UTI diagnostic criterion)
 
+## Experimental Data
+
+Four trials have been completed. Each trial folder contains time-lapse photos (t = 0–120 min, 5-min intervals) and full processed results.
+
+| Trial | Groups tested | Notes |
+|---|---|---|
+| `trial-1/` | 10¹–10⁸, sterile negative | Auto-exposure unlocked |
+| `trial-2/` | 10¹–10⁸, sterile negative | Auto-exposure unlocked |
+| `trial-3/` | 10¹–10⁸, sterile negative | Auto-exposure unlocked |
+| `trial-4/` | 10¹–10⁸, sterile negative | Auto-exposure unlocked |
+
+> All trials to date use unlocked auto-exposure. Algorithm thresholds (SD and slope) are calibrated for this condition. A locked-exposure trial is planned; parameters should be recalibrated afterward.
+
 ## Features
 
 - **Dual-algorithm detection** — SD (variance-based) and Slope (angular divergence) algorithms operate independently and are combined into a unified Total Detection Score
@@ -22,6 +35,7 @@ Resazurin (Alamar Blue) shifts from blue to pink as metabolically active bacteri
 - **Power analysis** — Wilson score CI-based sample size estimation for sensitivity and specificity targets
 - **Structured CSV exports** — long-format time-series tables, per-group summary sheets, total detection score breakdown
 - **Visualization** — ratio time-series plots, SD CV plots, slope score heatmaps, stacked detection score bar charts
+- **Likert color reference scale** — `likert_scale.png`, a 5-level colorimetric reference card derived from real well photos for human observer scoring
 
 ## Project Structure
 
@@ -39,7 +53,20 @@ assay_analyzer/
 ├── power_analysis.py     # Sample size / CI estimation (run standalone)
 ├── metrics.py            # Shared metric utilities
 ├── requirements.txt      # Python dependencies
-└── Assay_Methodology.docx  # Full methodology document
+├── likert_scale.png      # Human observer color reference card (Levels 1–5)
+├── Assay_Methodology.docx  # Full methodology document
+├── trial-1/
+│   ├── photos/           # 25 time-lapse JPGs (t = 0–120 min)
+│   └── results/          # CSVs, PNGs, statistics.json, groups/
+├── trial-2/
+│   ├── photos/
+│   └── results/
+├── trial-3/
+│   ├── photos/
+│   └── results/
+└── trial-4/
+    ├── photos/
+    └── results/
 ```
 
 ## Setup
@@ -120,18 +147,19 @@ All parameters are in `config.py`. Key settings to review before each run:
 
 ## Output
 
-Results are saved to the `results/` directory:
+Results are saved to the `results/` directory (and archived per trial in `trial-N/results/`):
 
 | File | Contents |
 |---|---|
 | `rgb_timeseries.csv` | Normalized R/G, R/B, G/B ratios — one row per group × timepoint |
-| `sd_results.csv` | CV values at every timepoint for all channels + detection summary |
-| `slope_results.csv` | Per-timepoint slope scores + detection summary |
+| `sd_channel_values.csv` | CV values at every timepoint for all channels + detection summary |
+| `slope_scores.csv` | Per-timepoint slope scores + detection summary |
 | `detection_events.csv` | First detection time, load tier, concordance — one row per group |
 | `total_detection_score.csv` | Per-timepoint score breakdown + full kinetic metrics summary |
-| `classification_results.csv` | Complete per-group result with all metrics |
-| `anova_results.csv` | Statistical test results across concentration groups |
+| `results_summary.csv` | Complete per-group result with all metrics |
+| `statistics.json` | Statistical test results (Kruskal-Wallis / ANOVA + post-hoc) |
 | `*.png` | Ratio plots, SD CV plots, slope heatmaps, detection score charts |
+| `groups/*.png` | Per-group RGB trace plots |
 
 ## Detection Algorithms
 
@@ -145,6 +173,20 @@ Computes the cosine of the angle between a fixed 7-point baseline regression (t 
 `Total Detection Score = SD Event Count + Slope Total Weighted Score`
 
 A continuous, ANOVA-ready variable that captures sustained evidence of color conversion from two complementary perspectives.
+
+## Human Observer Scoring
+
+`likert_scale.png` is a colorimetric reference card for human observer validation studies. It shows five levels of resazurin conversion derived from actual well photos across all four trials:
+
+| Level | Label | Interpretation | Color source |
+|---|---|---|---|
+| 1 | No change | Negative | Negative control wells at t = 120 min |
+| 2 | Slight change | Likely negative | — |
+| 3 | Moderate change | Ambiguous | — |
+| 4 | Clear change | Likely positive | — |
+| 5 | Definite change | Positive | 10⁸ CFU/mL wells at t = 120 min, averaged across all 4 trials |
+
+Score ≥ 4 = test positive. Designed for inclusion in research poster presentations.
 
 ## References
 
