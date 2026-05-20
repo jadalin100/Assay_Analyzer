@@ -227,6 +227,42 @@ LOAD_TIERS = {
 }
 
 # -----------------------------------------------------------------------------
+# Likert Colour-Matching Algorithm
+# -----------------------------------------------------------------------------
+# Five reference colours derived from real trial photos (trials 1–4).
+# Level 1 = unreacted resazurin (blue-purple, negative control at t=120 min).
+# Level 5 = fully converted resorufin (bright magenta, 10^8 CFU/mL at t=120 min,
+#           averaged across all four trials).
+# Levels 2–4 interpolate the transition.
+#
+# These values were sampled directly from JPEG well photos using PIL, so they
+# match the raw camera pixel scale (0-255).  The pipeline's white-balance
+# correction applies multiplicative scale factors (~1.0–1.1) per channel —
+# a small offset that does not affect level assignment given the large colour
+# distance (~180 units) between Level 1 and Level 5.
+#
+# !! RECALIBRATE after the first locked-exposure trial !!
+#    From rgb_timeseries.csv, read the mean R, G, B of the sterile negative
+#    at t=120 min → Level 1, and of the 10^8 group at t=120 min → Level 5.
+#    Linearly interpolate Levels 2–4 between those anchors (or sample
+#    directly from intermediate concentration wells).
+LIKERT_REFERENCE_COLORS = [
+    ( 94,  86, 198),   # Level 1 — No change        (Negative)
+    ( 80,  68, 175),   # Level 2 — Slight change    (Likely negative)
+    ( 92,  30, 154),   # Level 3 — Moderate change  (Ambiguous)
+    (179,  46, 166),   # Level 4 — Clear change     (Likely positive)
+    (188,   2, 152),   # Level 5 — Definite change  (Positive)
+]
+
+# Minimum Likert level to count as a "positive event" at a timepoint.
+# Score ≥ 4 = test positive (consistent with the printed Likert reference card).
+LIKERT_POSITIVE_THRESHOLD = 4
+
+# Minimum consecutive timepoints at >= LIKERT_POSITIVE_THRESHOLD before
+# detection is declared.  Mirrors SD_MIN_CONSECUTIVE and SLOPE_MIN_CONSECUTIVE.
+LIKERT_MIN_CONSECUTIVE = 2
+
+# -----------------------------------------------------------------------------
 # Statistical analysis
 # -----------------------------------------------------------------------------
 ALPHA = 0.05

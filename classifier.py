@@ -6,6 +6,7 @@ import numpy as np
 import config
 from sd_algorithm import run_sd_algorithm
 from slope_algorithm import run_slope_algorithm
+from likert_algorithm import run_likert_algorithm
 
 
 def _compute_ratio_auc(times: list, vals: list) -> float | None:
@@ -99,12 +100,16 @@ def _time_to_ratio_threshold(times: list, rg_vals: list) -> float | None:
     return None
 
 
-def _assign_load_tier(sd_first: float | None, slope_first: float | None) -> str:
+def _assign_load_tier(
+    sd_first: float | None,
+    slope_first: float | None,
+    likert_first: float | None = None,
+) -> str:
     """
     Assign a bacterial load tier based on the earliest detection time across
-    both algorithms. Returns a tier label from config.LOAD_TIERS, or 'negative'.
+    all algorithms. Returns a tier label from config.LOAD_TIERS, or 'negative'.
     """
-    candidates = [t for t in [sd_first, slope_first] if t is not None]
+    candidates = [t for t in [sd_first, slope_first, likert_first] if t is not None]
     if not candidates:
         return "negative"
     earliest = min(candidates)
@@ -129,8 +134,9 @@ def classify_sample(sample: dict) -> dict:
     rgb_data = sample["rgb_data"]
     concentration = sample["concentration"]
 
-    sd_result = run_sd_algorithm(rgb_data)
-    slope_result = run_slope_algorithm(rgb_data)
+    sd_result     = run_sd_algorithm(rgb_data)
+    slope_result  = run_slope_algorithm(rgb_data)
+    likert_result = run_likert_algorithm(rgb_data)
 
     ground_truth = concentration >= config.UTI_POSITIVE_THRESHOLD_CFU
 
@@ -168,15 +174,17 @@ def classify_sample(sample: dict) -> dict:
     )
 
     # ── Combined detection score ──────────────────────────────────────────────
-    # SD event count (boolean sum over timepoints) + slope total weighted score
-    # (continuous 0–6 per timepoint).  Single number for ANOVA across trials.
-    sd_event_count        = int(sum(sd_result.get("detection_flags", [])))
-    slope_total           = float(sum(slope_result.get("weighted_scores", [])))
-    total_detection_score = slope_total + sd_event_count
+    # SD event count (boolean sum) + slope total weighted score (continuous) +
+    # Likert event count (boolean sum) — all three algorithms contribute.
+    sd_event_count     = int(sum(sd_result.get("detection_flags", [])))
+    slope_total        = float(sum(slope_result.get("weighted_scores", [])))
+    likert_event_count = int(sum(likert_result.get("event_flags", [])))
+    total_detection_score = slope_total + sd_event_count + likert_event_count
 
     load_tier = _assign_load_tier(
         sd_result["first_detection_min"],
         slope_result["first_detection_min"],
+        likert_result["first_detection_min"],
     )
 
     return {
@@ -193,6 +201,11 @@ def classify_sample(sample: dict) -> dict:
         "slope_first_detection_min": slope_result["first_detection_min"],
         "slope_total_score":        slope_total,
         "slope_result":             slope_result,
+        # ── Likert algorithm ──────────────────────────────────────────────────
+        "likert_detected":          likert_result["detected"],
+        "likert_first_detection_min": likert_result["first_detection_min"],
+        "likert_event_count":       likert_event_count,
+        "likert_result":            likert_result,
         # ── Combined score ────────────────────────────────────────────────────
         "total_detection_score":    total_detection_score,
         "load_tier":                load_tier,
@@ -218,6 +231,7 @@ def classify_all(samples: list[dict]) -> list[dict]:
     for sample in samples:
         result = classify_sample(sample)
         print(f"  {sample['name']:30s}  SD: {result['sd_detected']}  "
-              f"Slope: {result['slope_detected']}  [{result['load_tier']}]")
+              f"Slope: {result['slope_detected']}  "
+              f"Likert: {result['likert_detected']}  [{result['load_tier']}]")
         results.append(result)
     return results

@@ -47,6 +47,7 @@ assay_analyzer/
 ├── classifier.py         # Per-sample classification, kinetic metrics, concordance
 ├── sd_algorithm.py       # Standard Deviation algorithm (Malanoski et al., 2016)
 ├── slope_algorithm.py    # Slope/angle algorithm (Ciaccheri et al., 2023)
+├── likert_algorithm.py   # Likert colour-matching algorithm (Euclidean RGB distance)
 ├── reporting.py          # CSV export functions
 ├── stats.py              # Statistical testing (ANOVA, Kruskal-Wallis, post-hoc)
 ├── visualization.py      # Matplotlib plots
@@ -140,10 +141,12 @@ All parameters are in `config.py`. Key settings to review before each run:
 | `SD_THRESHOLD_TWO` | `0.075` | CV threshold — any two channels must exceed |
 | `SD_MIN_CONSECUTIVE` | `2` | Consecutive frames required before SD detection fires |
 | `SLOPE_MIN_CONSECUTIVE` | `2` | Consecutive frames required before slope detection fires |
+| `LIKERT_POSITIVE_THRESHOLD` | `4` | Minimum Likert level to count as a positive event |
+| `LIKERT_MIN_CONSECUTIVE` | `2` | Consecutive frames required before Likert detection fires |
 | `RATIO_THRESHOLD` | `1.10` | Fixed R/G threshold for Time-to-Threshold metric |
 | `UTI_POSITIVE_THRESHOLD_CFU` | `1e5` | Clinical positive cutoff (CFU/mL) |
 
-> **Note:** SD thresholds and slope parameters (`SLOPE_A/B/C_SINGLE`) are currently calibrated for unlocked auto-exposure data. After the first locked-exposure reagent-normalized trial, lower the SD thresholds and recalibrate the slope parameters using the measured angle values per concentration group.
+> **Note:** SD thresholds and slope parameters (`SLOPE_A/B/C_SINGLE`) are currently calibrated for unlocked auto-exposure data. After the first locked-exposure reagent-normalized trial, lower the SD thresholds and recalibrate the slope parameters using the measured angle values per concentration group. Recalibrate `LIKERT_REFERENCE_COLORS` by reading the mean R, G, B values from `rgb_timeseries.csv` for the negative control (Level 1) and 10⁸ well at t=120 min (Level 5).
 
 ## Output
 
@@ -154,6 +157,7 @@ Results are saved to the `results/` directory (and archived per trial in `trial-
 | `rgb_timeseries.csv` | Normalized R/G, R/B, G/B ratios — one row per group × timepoint |
 | `sd_channel_values.csv` | CV values at every timepoint for all channels + detection summary |
 | `slope_scores.csv` | Per-timepoint slope scores + detection summary |
+| `likert_scores.csv` | Per-timepoint Likert colour-match level (1–5) + detection summary |
 | `detection_events.csv` | First detection time, load tier, concordance — one row per group |
 | `total_detection_score.csv` | Per-timepoint score breakdown + full kinetic metrics summary |
 | `results_summary.csv` | Complete per-group result with all metrics |
@@ -169,10 +173,13 @@ Monitors the rolling coefficient of variation (CV = SD / mean) over a 9-timepoin
 ### Slope Algorithm (Ciaccheri et al., 2023)
 Computes the cosine of the angle between a fixed 7-point baseline regression (t = 0–30 min) and a sliding 4-point current window. An adaptive threshold `θ = A·exp(−mean/B) + C` accounts for the mean ratio value. Each channel is scored 0–2 based on angular divergence and regression quality (R²). Detection fires when the sum exceeds a weighted threshold for ≥ 2 consecutive frames. Scoring begins at t = 50 min to ensure non-overlapping baseline and current windows.
 
-### Total Detection Score
-`Total Detection Score = SD Event Count + Slope Total Weighted Score`
+### Likert Colour-Matching Algorithm
+At each timepoint the mean RGB value of the well is compared by Euclidean distance to five reference colours stored in `config.LIKERT_REFERENCE_COLORS`. These were sampled directly from actual trial photos: Level 1 from the sterile negative control at t=120 min (unreacted blue-purple resazurin), Level 5 from the 10⁸ well at t=120 min averaged across all four trials (fully converted bright magenta resorufin). Detection fires when the matched level ≥ `LIKERT_POSITIVE_THRESHOLD` (default 4) for ≥ `LIKERT_MIN_CONSECUTIVE` consecutive frames. This algorithm is unique in that it operates on absolute RGB colour space rather than ratio variance or slope — it asks "does this well look pink?" directly.
 
-A continuous, ANOVA-ready variable that captures sustained evidence of color conversion from two complementary perspectives.
+### Total Detection Score
+`Total Detection Score = SD Event Count + Slope Total Weighted Score + Likert Event Count`
+
+A continuous, ANOVA-ready variable that captures sustained evidence of color conversion from three complementary perspectives: variance (SD), directional slope, and direct colour matching.
 
 ## Human Observer Scoring
 

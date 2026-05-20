@@ -363,8 +363,14 @@ def plot_total_detection_scores(results: list[dict], out_dir: str):
     labels   = [r["name"] for r in sorted_results]
     sd_vals  = [r.get("sd_event_count", 0) for r in sorted_results]
     sl_vals  = [r.get("slope_total_score", 0.0) for r in sorted_results]
+    lk_vals  = [r.get("likert_event_count", 0) for r in sorted_results]
     totals   = [r.get("total_detection_score", 0.0) for r in sorted_results]
     gt       = [r.get("ground_truth_positive", False) for r in sorted_results]
+
+    # Bottom of each stacked layer
+    sd_bottoms = [0] * len(labels)
+    sl_bottoms = [s for s in sd_vals]
+    lk_bottoms = [s + l for s, l in zip(sd_vals, sl_vals)]
 
     x = np.arange(len(labels))
     fig, ax = plt.subplots(figsize=(max(8, len(labels) * 1.4), 5))
@@ -381,11 +387,11 @@ def plot_total_detection_scores(results: list[dict], out_dir: str):
     if neg_indices and pos_indices:
         boundary = (max(neg_indices) + min(pos_indices)) / 2
         ax.axvline(boundary, color="black", lw=1.5, ls="--", alpha=0.6,
-                   label=f"Clinical threshold (10⁵ CFU/mL)")
+                   label="Clinical threshold (10⁵ CFU/mL)")
 
-    bars_sd = ax.bar(x, sd_vals, label="SD event count", color="#4C9BE8", zorder=2)
-    bars_sl = ax.bar(x, sl_vals, bottom=sd_vals, label="Slope total score",
-                     color="#E87B4C", zorder=2)
+    ax.bar(x, sd_vals, bottom=sd_bottoms, label="SD event count",    color="#4C9BE8", zorder=2)
+    ax.bar(x, sl_vals, bottom=sl_bottoms, label="Slope total score",  color="#E87B4C", zorder=2)
+    ax.bar(x, lk_vals, bottom=lk_bottoms, label="Likert event count", color="#6EC46E", zorder=2)
 
     # Annotate total above each bar
     for i, total in enumerate(totals):
@@ -402,7 +408,7 @@ def plot_total_detection_scores(results: list[dict], out_dir: str):
     ax.set_ylabel("Score")
     ax.set_title(
         "Total Detection Score per Group\n"
-        "(SD event count + slope weighted score)   "
+        "(SD event count + slope weighted score + Likert event count)   "
         "▽ = clinical negative   ▲ = clinical positive",
         fontweight="bold"
     )
@@ -412,12 +418,92 @@ def plot_total_detection_scores(results: list[dict], out_dir: str):
     _save(fig, os.path.join(out_dir, "total_detection_scores.png"))
 
 
+def plot_likert_scores(results: list[dict], out_dir: str):
+    """
+    Step plot of Likert colour-match level (1–5) over time for all groups.
+
+    Each group is one line.  Clinical positives (ground_truth_positive=True)
+    are drawn in warm colours; negatives in cool colours.  A horizontal dashed
+    line marks the positive threshold.  The right-hand edge shows the reference
+    colour swatch for each Likert level.
+    """
+    ref_colors = getattr(config, "LIKERT_REFERENCE_COLORS",
+                         [(94,86,198),(80,68,175),(92,30,154),(179,46,166),(188,2,152)])
+    threshold  = int(getattr(config, "LIKERT_POSITIVE_THRESHOLD", 4))
+    n_levels   = len(ref_colors)
+
+    pos_results = [r for r in results if r.get("ground_truth_positive")]
+    neg_results = [r for r in results if not r.get("ground_truth_positive")]
+
+    # Colour palettes — warm for positives, cool for negatives.
+    warm = plt.cm.Reds(np.linspace(0.4, 0.9, max(len(pos_results), 1)))
+    cool = plt.cm.Blues(np.linspace(0.4, 0.9, max(len(neg_results), 1)))
+    colour_map = {}
+    for i, r in enumerate(neg_results):
+        colour_map[r["name"]] = cool[i]
+    for i, r in enumerate(pos_results):
+        colour_map[r["name"]] = warm[i]
+
+    fig, ax = plt.subplots(figsize=(13, 5))
+
+    for r in results:
+        lk = r["likert_result"]
+        times  = lk["times"]
+        scores = lk["likert_scores"]
+        lw   = 2.0 if r.get("ground_truth_positive") else 1.2
+        ls   = "-" if r.get("ground_truth_positive") else "--"
+        col  = colour_map[r["name"]]
+        ax.step(times, scores, where="post", color=col, lw=lw, ls=ls,
+                label=r["name"], zorder=3)
+
+        # Mark first detection
+        fd = r.get("likert_first_detection_min")
+        if fd is not None:
+            ax.axvline(fd, color=col, alpha=0.4, lw=0.8, zorder=2)
+
+    # Positive threshold line
+    ax.axhline(threshold - 0.5, color="#c0392b", lw=1.5, ls=":", zorder=4,
+               label=f"Positive threshold (≥{threshold})")
+
+    # Right-side colour swatches showing what each level looks like
+    ax_right = ax.twinx()
+    ax_right.set_ylim(ax.get_ylim())
+    ax_right.set_yticks(list(range(1, n_levels + 1)))
+    ax_right.set_yticklabels([])
+    # Draw small coloured rectangles as tick labels
+    for level_idx, rgb in enumerate(ref_colors):
+        level = level_idx + 1
+        color_norm = tuple(c / 255 for c in rgb)
+        ax_right.axhspan(level - 0.4, level + 0.4,
+                         xmin=0.98, xmax=1.0,
+                         color=color_norm, alpha=0.9, zorder=5,
+                         transform=ax_right.get_xaxis_transform())
+
+    ax.set_xlabel("Time (min)", fontsize=11)
+    ax.set_ylabel("Likert level", fontsize=11)
+    ax.set_yticks(list(range(1, n_levels + 1)))
+    ax.set_yticklabels([f"Level {i}" for i in range(1, n_levels + 1)], fontsize=9)
+    ax.set_ylim(0.5, n_levels + 0.5)
+    ax.set_title(
+        "Likert Algorithm — Colour-Match Level Over Time\n"
+        "(warm/solid = clinical positive, cool/dashed = clinical negative,  "
+        f"threshold = ≥{threshold})",
+        fontweight="bold"
+    )
+    ax.legend(bbox_to_anchor=(1.06, 1), loc="upper left", fontsize=8,
+              borderaxespad=0, framealpha=0.9)
+    ax.grid(axis="y", alpha=0.25, zorder=1)
+    plt.tight_layout()
+    _save(fig, os.path.join(out_dir, "likert_scores.png"))
+
+
 def generate_all_plots(results: list[dict], metrics: dict, out_dir: str):
     """Generate all plots and save to out_dir."""
     plot_rgb_traces(results, out_dir)
     plot_ratios(results, out_dir)
     plot_sd_ratios(results, out_dir)
     plot_slope_scores(results, out_dir)
+    plot_likert_scores(results, out_dir)
     plot_total_detection_scores(results, out_dir)
     plot_performance_summary(metrics, out_dir)
     plot_per_group(results, out_dir)

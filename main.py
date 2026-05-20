@@ -215,6 +215,8 @@ def _save_csv(results: list[dict], path: str):
         "sd_detected", "sd_first_detection_min", "sd_event_count",
         # ── Slope algorithm ───────────────────────────────────────────────────
         "slope_detected", "slope_first_detection_min", "slope_total_score",
+        # ── Likert algorithm ──────────────────────────────────────────────────
+        "likert_detected", "likert_first_detection_min", "likert_event_count",
         # ── Continuous kinetic metrics ────────────────────────────────────────
         "rg_auc",                       # area under normalized R/G curve (ratio·min)
         "rb_auc",                       # area under normalized R/B curve
@@ -229,7 +231,9 @@ def _save_csv(results: list[dict], path: str):
         writer.writeheader()
         for r in results:
             row = {k: r.get(k, "") for k in fieldnames}
-            row["overall_positive"] = r.get("sd_detected") or r.get("slope_detected")
+            row["overall_positive"] = (
+                r.get("sd_detected") or r.get("slope_detected") or r.get("likert_detected")
+            )
             # Round floats for readability
             for key in ("total_detection_score", "slope_total_score",
                         "rg_auc", "rb_auc", "gb_auc", "rate_of_change_rg"):

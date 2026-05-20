@@ -262,6 +262,122 @@ def save_sd_csv(results: list[dict], out_dir: str):
 
 
 # =============================================================================
+# Likert algorithm
+# =============================================================================
+
+def print_likert_table(results: list[dict]):
+    """Print per-group Likert score (1–5) at each timepoint."""
+    W_GROUP = 36
+    W_TIME  = 7
+    W_DET   = 10
+    W_FIRST = 18
+
+    first_times = results[0]["likert_result"]["times"]
+    time_headers = "".join(_col(f"t={int(t)}", W_TIME) for t in first_times)
+    header = (
+        _col("Group", W_GROUP)
+        + time_headers
+        + _col("Detected", W_DET)
+        + _col("First detect (min)", W_FIRST)
+    )
+    sep = "-" * len(header)
+
+    print()
+    print("=" * len(sep))
+    print("  LIKERT ALGORITHM — Closest colour reference level at each timepoint")
+    print(f"  Threshold: level >= {config.LIKERT_POSITIVE_THRESHOLD}  "
+          f"for >= {config.LIKERT_MIN_CONSECUTIVE} consecutive frames")
+    print("=" * len(sep))
+    print(header)
+    print(sep)
+
+    for r in results:
+        lk = r["likert_result"]
+        score_cells = "".join(_col(str(s), W_TIME) for s in lk["likert_scores"])
+        first = r.get("likert_first_detection_min")
+        first_str = f"{int(first)} min" if first is not None else "—"
+        print(
+            _col(r["name"], W_GROUP)
+            + score_cells
+            + _col(_det(r["likert_detected"]), W_DET)
+            + _col(first_str, W_FIRST)
+        )
+
+    print(sep)
+    print()
+
+
+def save_likert_csv(results: list[dict], out_dir: str):
+    """
+    Save Likert scores — long format: one row per group × timepoint.
+    Summary section appended after a blank row.
+    """
+    path = os.path.join(out_dir, "likert_scores.csv")
+    threshold = config.LIKERT_POSITIVE_THRESHOLD
+
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+
+        # ── Reference colour table ─────────────────────────────────────────────
+        writer.writerow(["# LIKERT REFERENCE COLORS"])
+        writer.writerow(["level", "label", "R", "G", "B"])
+        labels = [
+            "No change (Negative)",
+            "Slight change (Likely negative)",
+            "Moderate change (Ambiguous)",
+            "Clear change (Likely positive)",
+            "Definite change (Positive)",
+        ]
+        for i, (color, label) in enumerate(zip(config.LIKERT_REFERENCE_COLORS, labels)):
+            writer.writerow([i + 1, label, color[0], color[1], color[2]])
+        writer.writerow([])
+
+        # ── Per-timepoint section ──────────────────────────────────────────────
+        writer.writerow(["# LIKERT SCORES — PER TIMEPOINT"])
+        writer.writerow([
+            "group", "concentration_cfu_ml", "time_min",
+            "likert_score", "match_distance_rgb",
+            "above_threshold",
+        ])
+        for r in results:
+            lk = r["likert_result"]
+            for t, score, dist, flag in zip(
+                lk["times"], lk["likert_scores"],
+                lk["match_distances"], lk["event_flags"],
+            ):
+                writer.writerow([
+                    r["name"],
+                    r["concentration_cfu_ml"],
+                    int(t),
+                    score,
+                    round(dist, 2),
+                    flag,
+                ])
+
+        # ── Per-group summary ──────────────────────────────────────────────────
+        writer.writerow([])
+        writer.writerow(["# LIKERT SCORES — PER-GROUP SUMMARY"])
+        writer.writerow([
+            "group", "concentration_cfu_ml",
+            "likert_event_count", "final_likert_score",
+            "detected", "first_detection_min",
+        ])
+        for r in results:
+            lk = r["likert_result"]
+            writer.writerow([
+                r["name"],
+                r["concentration_cfu_ml"],
+                r.get("likert_event_count", 0),
+                lk["likert_scores"][-1] if lk["likert_scores"] else "",
+                r["likert_detected"],
+                int(r["likert_first_detection_min"])
+                    if r.get("likert_first_detection_min") is not None else "",
+            ])
+
+    print(f"  Saved: {path}")
+
+
+# =============================================================================
 # Detection events
 # =============================================================================
 
@@ -326,14 +442,19 @@ def save_detection_events_csv(results: list[dict], out_dir: str):
             "slope_event_count", "slope_event_timepoints_min",
             "slope_detected", "slope_first_detection_min",
             "slope_total_score",
+            "likert_event_count", "likert_event_timepoints_min",
+            "likert_detected", "likert_first_detection_min",
             "total_detection_score",
             "concordance_status", "concordance_discordance_min",
         ])
         for r in results:
             sd = r["sd_result"]
             sl = r["slope_result"]
-            sd_events    = [t for t, flag in zip(sd["times"], sd["detection_flags"]) if flag]
-            slope_events = [t for t, s in zip(sl["times"], sl["weighted_scores"]) if s > threshold]
+            lk = r["likert_result"]
+            sd_events     = [t for t, flag in zip(sd["times"], sd["detection_flags"]) if flag]
+            slope_events  = [t for t, s in zip(sl["times"], sl["weighted_scores"]) if s > threshold]
+            likert_threshold = getattr(config, "LIKERT_POSITIVE_THRESHOLD", 4)
+            likert_events = [t for t, flag in zip(lk["times"], lk["event_flags"]) if flag]
             writer.writerow([
                 r["name"],
                 r["concentration_cfu_ml"],
@@ -346,6 +467,10 @@ def save_detection_events_csv(results: list[dict], out_dir: str):
                 r["slope_detected"],
                 int(r["slope_first_detection_min"]) if r.get("slope_first_detection_min") is not None else "",
                 round(r.get("slope_total_score", 0.0), 4),
+                len(likert_events),
+                ";".join(str(int(t)) for t in likert_events),
+                r["likert_detected"],
+                int(r["likert_first_detection_min"]) if r.get("likert_first_detection_min") is not None else "",
                 round(r.get("total_detection_score", 0.0), 4),
                 r.get("concordance_status", ""),
                 r.get("concordance_discordance_min", ""),
@@ -369,6 +494,7 @@ def print_total_detection_table(results: list[dict]):
         _col("Group", W_GROUP)
         + _col("SD event count", W_VAL)
         + _col("Slope total score", W_VAL)
+        + _col("Likert events", W_VAL)
         + _col("TOTAL score", W_TOTAL)
         + _col("Concordance", W_CONC)
         + _col("Load tier", 24)
@@ -377,7 +503,7 @@ def print_total_detection_table(results: list[dict]):
 
     print()
     print("=" * len(sep))
-    print("  TOTAL DETECTION SCORE  =  SD event count  +  slope total weighted score")
+    print("  TOTAL DETECTION SCORE  =  SD event count  +  slope total weighted score  +  Likert event count")
     print("=" * len(sep))
     print(header)
     print(sep)
@@ -390,6 +516,7 @@ def print_total_detection_table(results: list[dict]):
             _col(r["name"], W_GROUP)
             + _col(str(r.get("sd_event_count", 0)), W_VAL)
             + _col(_fmt_val(r.get("slope_total_score"), 2), W_VAL)
+            + _col(str(r.get("likert_event_count", 0)), W_VAL)
             + _col(_fmt_val(r.get("total_detection_score"), 2), W_TOTAL)
             + _col(conc_str, W_CONC)
             + _col(r.get("load_tier", "—"), 24)
@@ -457,8 +584,9 @@ def save_total_detection_csv(results: list[dict], out_dir: str):
         writer.writerow(["# SECTION 2 — PER-GROUP SUMMARY"])
         writer.writerow([
             "group", "concentration_cfu_ml",
-            "sd_event_count", "slope_total_score", "total_detection_score",
-            "sd_detected", "slope_detected",
+            "sd_event_count", "slope_total_score", "likert_event_count",
+            "total_detection_score",
+            "sd_detected", "slope_detected", "likert_detected",
             "concordance_status", "concordance_discordance_min",
             "load_tier",
             "rg_auc", "rb_auc", "gb_auc",
@@ -471,9 +599,11 @@ def save_total_detection_csv(results: list[dict], out_dir: str):
                 r["concentration_cfu_ml"],
                 r.get("sd_event_count", ""),
                 round(r.get("slope_total_score", 0.0), 4) if r.get("slope_total_score") is not None else "",
+                r.get("likert_event_count", ""),
                 round(r.get("total_detection_score", 0.0), 4) if r.get("total_detection_score") is not None else "",
                 r.get("sd_detected", ""),
                 r.get("slope_detected", ""),
+                r.get("likert_detected", ""),
                 r.get("concordance_status", ""),
                 r.get("concordance_discordance_min", ""),
                 r.get("load_tier", ""),
@@ -497,6 +627,8 @@ def print_and_save_tables(results: list[dict], out_dir: str):
     save_slope_csv(results, out_dir)
     print_sd_table(results)
     save_sd_csv(results, out_dir)
+    print_likert_table(results)
+    save_likert_csv(results, out_dir)
     print_detection_events(results)
     save_detection_events_csv(results, out_dir)
     print_total_detection_table(results)
