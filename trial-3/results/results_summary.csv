@@ -1,0 +1,10 @@
+name,concentration_cfu_ml,ground_truth_positive,overall_positive,total_detection_score,load_tier,concordance_status,concordance_discordance_min,sd_detected,sd_first_detection_min,sd_event_count,slope_detected,slope_first_detection_min,slope_total_score,rg_auc,rb_auc,gb_auc,time_to_ratio_threshold,rate_of_change_rg,final_RG_ratio,final_RB_ratio,final_GB_ratio
+10^1 ,10.0,False,False,22.0,negative,concordant_negative,,False,,0,False,,22.0,148.9219,113.4088,91.927,,0.0146,1.478089453460839,1.0155199287333379,0.6870490297965508
+10^2,100.0,False,False,12.0,negative,concordant_negative,,False,,0,False,,12.0,144.6346,108.7445,90.6621,,0.0094,1.3751570509322184,0.9404545678411597,0.683888842648297
+10^3,1000.0,False,False,25.0,negative,concordant_negative,,False,,0,False,,25.0,138.4347,105.5888,91.913,,0.0064,1.2676881964319011,0.8735330765458263,0.6890756534806122
+10^4,10000.0,False,False,0.0,negative,concordant_negative,,False,,0,False,,0.0,120.0005,121.8613,122.052,,0.0005,0.9801130173827279,0.9908238133094721,1.0109281239559655
+10^5,100000.0,True,False,0.0,negative,concordant_negative,,False,,0,False,,0.0,123.5597,131.8073,128.0306,,0.0012,1.0459865353781221,1.1027146232705942,1.0542340530756666
+10^6,1000000.0,True,True,4.0,low  (≥10^5),algorithm_discordant,,True,120,2,False,,2.0,137.6695,139.5124,130.3134,125,0.0217,1.5226132263845,0.7248012347587992,0.4760245180597659
+10^7,10000000.0,True,False,2.0,negative,concordant_negative,,False,,0,False,,2.0,130.4395,156.8926,144.0349,,0.0006,1.113463634619984,1.4369091964804361,1.2904859729128793
+10^8 (Positive Control),100000000.0,True,True,72.0,heavy  (≥10^7),algorithm_discordant,,True,25,11,False,,61.0,147.5101,186.2102,151.6519,,-0.0103,1.1730989788834827,1.7030523207464592,1.4517550174788603
+0 (Sterile Negative Control),0.0,False,False,19.0,negative,concordant_negative,,False,,0,False,,19.0,131.994,105.2125,95.7737,,0.0073,1.2111335459368255,0.9333232311851535,0.7706195835606102

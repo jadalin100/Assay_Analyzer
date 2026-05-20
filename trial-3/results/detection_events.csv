@@ -1,0 +1,11 @@
+# DETECTION EVENTS — timepoints where each algorithm's criteria were met
+group,concentration_cfu_ml,sd_event_count,sd_event_timepoints_min,sd_detected,sd_first_detection_min,slope_event_count,slope_event_timepoints_min,slope_detected,slope_first_detection_min,slope_total_score,total_detection_score,concordance_status,concordance_discordance_min
+10^1 ,10.0,0,,False,,0,,False,,22.0,22.0,concordant_negative,
+10^2,100.0,0,,False,,0,,False,,12.0,12.0,concordant_negative,
+10^3,1000.0,0,,False,,0,,False,,25.0,25.0,concordant_negative,
+10^4,10000.0,0,,False,,0,,False,,0.0,0.0,concordant_negative,
+10^5,100000.0,0,,False,,0,,False,,0.0,0.0,concordant_negative,
+10^6,1000000.0,2,120;125,True,120,0,,False,,2.0,4.0,algorithm_discordant,
+10^7,10000000.0,0,,False,,0,,False,,2.0,2.0,concordant_negative,
+10^8 (Positive Control),100000000.0,11,25;30;35;40;45;50;55;60;65;70;75,True,25,2,55;115,False,,61.0,72.0,algorithm_discordant,
+0 (Sterile Negative Control),0.0,0,,False,,0,,False,,19.0,19.0,concordant_negative,

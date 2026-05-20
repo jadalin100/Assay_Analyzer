@@ -1,0 +1,240 @@
+# SLOPE SCORES — PER TIMEPOINT
+group,concentration_cfu_ml,time_min,weighted_score,above_threshold
+10^1 ,10.0,0,0.0,False
+10^1 ,10.0,5,0.0,False
+10^1 ,10.0,10,0.0,False
+10^1 ,10.0,15,0.0,False
+10^1 ,10.0,20,0.0,False
+10^1 ,10.0,25,0.0,False
+10^1 ,10.0,30,0.0,False
+10^1 ,10.0,35,0.0,False
+10^1 ,10.0,40,0.0,False
+10^1 ,10.0,45,0.0,False
+10^1 ,10.0,50,2.0,False
+10^1 ,10.0,55,0.0,False
+10^1 ,10.0,60,0.0,False
+10^1 ,10.0,65,0.0,False
+10^1 ,10.0,70,0.0,False
+10^1 ,10.0,75,0.0,False
+10^1 ,10.0,80,0.0,False
+10^1 ,10.0,85,2.0,False
+10^1 ,10.0,90,2.0,False
+10^1 ,10.0,95,2.0,False
+10^1 ,10.0,100,4.0,False
+10^1 ,10.0,105,4.0,False
+10^1 ,10.0,110,2.0,False
+10^1 ,10.0,115,2.0,False
+10^1 ,10.0,120,2.0,False
+10^2,100.0,0,0.0,False
+10^2,100.0,5,0.0,False
+10^2,100.0,10,0.0,False
+10^2,100.0,15,0.0,False
+10^2,100.0,20,0.0,False
+10^2,100.0,25,0.0,False
+10^2,100.0,30,0.0,False
+10^2,100.0,35,0.0,False
+10^2,100.0,40,0.0,False
+10^2,100.0,45,0.0,False
+10^2,100.0,50,2.0,False
+10^2,100.0,55,2.0,False
+10^2,100.0,60,0.0,False
+10^2,100.0,65,0.0,False
+10^2,100.0,70,0.0,False
+10^2,100.0,75,0.0,False
+10^2,100.0,80,0.0,False
+10^2,100.0,85,0.0,False
+10^2,100.0,90,0.0,False
+10^2,100.0,95,0.0,False
+10^2,100.0,100,2.0,False
+10^2,100.0,105,2.0,False
+10^2,100.0,110,2.0,False
+10^2,100.0,115,2.0,False
+10^2,100.0,120,0.0,False
+10^3,1000.0,0,0.0,False
+10^3,1000.0,5,0.0,False
+10^3,1000.0,10,0.0,False
+10^3,1000.0,15,0.0,False
+10^3,1000.0,20,0.0,False
+10^3,1000.0,25,0.0,False
+10^3,1000.0,30,0.0,False
+10^3,1000.0,35,0.0,False
+10^3,1000.0,40,0.0,False
+10^3,1000.0,45,0.0,False
+10^3,1000.0,50,2.0,False
+10^3,1000.0,55,2.0,False
+10^3,1000.0,60,0.0,False
+10^3,1000.0,65,0.0,False
+10^3,1000.0,70,0.0,False
+10^3,1000.0,75,0.0,False
+10^3,1000.0,80,1.0,False
+10^3,1000.0,85,2.0,False
+10^3,1000.0,90,2.0,False
+10^3,1000.0,95,2.0,False
+10^3,1000.0,100,2.0,False
+10^3,1000.0,105,4.0,False
+10^3,1000.0,110,4.0,False
+10^3,1000.0,115,4.0,False
+10^3,1000.0,120,0.0,False
+10^4,10000.0,0,0.0,False
+10^4,10000.0,5,0.0,False
+10^4,10000.0,10,0.0,False
+10^4,10000.0,15,0.0,False
+10^4,10000.0,20,0.0,False
+10^4,10000.0,25,0.0,False
+10^4,10000.0,30,0.0,False
+10^4,10000.0,35,0.0,False
+10^4,10000.0,40,0.0,False
+10^4,10000.0,45,0.0,False
+10^4,10000.0,50,0.0,False
+10^4,10000.0,55,0.0,False
+10^4,10000.0,60,0.0,False
+10^4,10000.0,65,0.0,False
+10^4,10000.0,70,0.0,False
+10^4,10000.0,75,0.0,False
+10^4,10000.0,80,0.0,False
+10^4,10000.0,85,0.0,False
+10^4,10000.0,90,0.0,False
+10^4,10000.0,95,0.0,False
+10^4,10000.0,100,0.0,False
+10^4,10000.0,105,0.0,False
+10^4,10000.0,110,0.0,False
+10^4,10000.0,115,0.0,False
+10^4,10000.0,120,0.0,False
+10^5,100000.0,0,0.0,False
+10^5,100000.0,5,0.0,False
+10^5,100000.0,10,0.0,False
+10^5,100000.0,15,0.0,False
+10^5,100000.0,20,0.0,False
+10^5,100000.0,25,0.0,False
+10^5,100000.0,30,0.0,False
+10^5,100000.0,35,0.0,False
+10^5,100000.0,40,0.0,False
+10^5,100000.0,45,0.0,False
+10^5,100000.0,50,0.0,False
+10^5,100000.0,55,0.0,False
+10^5,100000.0,60,0.0,False
+10^5,100000.0,65,0.0,False
+10^5,100000.0,70,0.0,False
+10^5,100000.0,75,0.0,False
+10^5,100000.0,80,0.0,False
+10^5,100000.0,85,0.0,False
+10^5,100000.0,90,0.0,False
+10^5,100000.0,95,0.0,False
+10^5,100000.0,100,0.0,False
+10^5,100000.0,105,0.0,False
+10^5,100000.0,110,0.0,False
+10^5,100000.0,115,0.0,False
+10^5,100000.0,120,0.0,False
+10^6,1000000.0,0,0.0,False
+10^6,1000000.0,5,0.0,False
+10^6,1000000.0,10,0.0,False
+10^6,1000000.0,15,0.0,False
+10^6,1000000.0,20,0.0,False
+10^6,1000000.0,25,0.0,False
+10^6,1000000.0,30,0.0,False
+10^6,1000000.0,35,0.0,False
+10^6,1000000.0,40,0.0,False
+10^6,1000000.0,45,0.0,False
+10^6,1000000.0,50,0.0,False
+10^6,1000000.0,55,0.0,False
+10^6,1000000.0,60,0.0,False
+10^6,1000000.0,65,0.0,False
+10^6,1000000.0,70,0.0,False
+10^6,1000000.0,75,0.0,False
+10^6,1000000.0,80,0.0,False
+10^6,1000000.0,85,2.0,False
+10^6,1000000.0,90,0.0,False
+10^6,1000000.0,95,0.0,False
+10^6,1000000.0,100,0.0,False
+10^6,1000000.0,105,0.0,False
+10^6,1000000.0,110,0.0,False
+10^6,1000000.0,115,0.0,False
+10^6,1000000.0,120,0.0,False
+10^6,1000000.0,125,0.0,False
+10^7,10000000.0,0,0.0,False
+10^7,10000000.0,5,0.0,False
+10^7,10000000.0,10,0.0,False
+10^7,10000000.0,15,0.0,False
+10^7,10000000.0,20,0.0,False
+10^7,10000000.0,25,0.0,False
+10^7,10000000.0,30,0.0,False
+10^7,10000000.0,35,0.0,False
+10^7,10000000.0,40,0.0,False
+10^7,10000000.0,45,0.0,False
+10^7,10000000.0,50,0.0,False
+10^7,10000000.0,55,2.0,False
+10^7,10000000.0,60,0.0,False
+10^7,10000000.0,65,0.0,False
+10^7,10000000.0,70,0.0,False
+10^7,10000000.0,75,0.0,False
+10^7,10000000.0,80,0.0,False
+10^7,10000000.0,85,0.0,False
+10^7,10000000.0,90,0.0,False
+10^7,10000000.0,95,0.0,False
+10^7,10000000.0,100,0.0,False
+10^7,10000000.0,105,0.0,False
+10^7,10000000.0,110,0.0,False
+10^7,10000000.0,115,0.0,False
+10^7,10000000.0,120,0.0,False
+10^8 (Positive Control),100000000.0,0,0.0,False
+10^8 (Positive Control),100000000.0,5,0.0,False
+10^8 (Positive Control),100000000.0,10,0.0,False
+10^8 (Positive Control),100000000.0,15,0.0,False
+10^8 (Positive Control),100000000.0,20,0.0,False
+10^8 (Positive Control),100000000.0,25,0.0,False
+10^8 (Positive Control),100000000.0,30,0.0,False
+10^8 (Positive Control),100000000.0,35,0.0,False
+10^8 (Positive Control),100000000.0,40,0.0,False
+10^8 (Positive Control),100000000.0,45,0.0,False
+10^8 (Positive Control),100000000.0,50,2.0,False
+10^8 (Positive Control),100000000.0,55,6.0,True
+10^8 (Positive Control),100000000.0,60,4.0,False
+10^8 (Positive Control),100000000.0,65,4.0,False
+10^8 (Positive Control),100000000.0,70,4.0,False
+10^8 (Positive Control),100000000.0,75,4.0,False
+10^8 (Positive Control),100000000.0,80,4.0,False
+10^8 (Positive Control),100000000.0,85,4.0,False
+10^8 (Positive Control),100000000.0,90,4.0,False
+10^8 (Positive Control),100000000.0,95,4.0,False
+10^8 (Positive Control),100000000.0,100,4.0,False
+10^8 (Positive Control),100000000.0,105,4.0,False
+10^8 (Positive Control),100000000.0,110,4.0,False
+10^8 (Positive Control),100000000.0,115,6.0,True
+10^8 (Positive Control),100000000.0,120,3.0,False
+0 (Sterile Negative Control),0.0,0,0.0,False
+0 (Sterile Negative Control),0.0,5,0.0,False
+0 (Sterile Negative Control),0.0,10,0.0,False
+0 (Sterile Negative Control),0.0,15,0.0,False
+0 (Sterile Negative Control),0.0,20,0.0,False
+0 (Sterile Negative Control),0.0,25,0.0,False
+0 (Sterile Negative Control),0.0,30,0.0,False
+0 (Sterile Negative Control),0.0,35,0.0,False
+0 (Sterile Negative Control),0.0,40,0.0,False
+0 (Sterile Negative Control),0.0,45,0.0,False
+0 (Sterile Negative Control),0.0,50,0.0,False
+0 (Sterile Negative Control),0.0,55,0.0,False
+0 (Sterile Negative Control),0.0,60,0.0,False
+0 (Sterile Negative Control),0.0,65,0.0,False
+0 (Sterile Negative Control),0.0,70,0.0,False
+0 (Sterile Negative Control),0.0,75,2.0,False
+0 (Sterile Negative Control),0.0,80,2.0,False
+0 (Sterile Negative Control),0.0,85,2.0,False
+0 (Sterile Negative Control),0.0,90,2.0,False
+0 (Sterile Negative Control),0.0,95,2.0,False
+0 (Sterile Negative Control),0.0,100,2.0,False
+0 (Sterile Negative Control),0.0,105,2.0,False
+0 (Sterile Negative Control),0.0,110,2.0,False
+0 (Sterile Negative Control),0.0,115,2.0,False
+0 (Sterile Negative Control),0.0,120,1.0,False
+
+# SLOPE SCORES — PER-GROUP SUMMARY
+group,concentration_cfu_ml,slope_total_score,slope_event_count,detected,first_detection_min
+10^1 ,10.0,22.0,0,False,
+10^2,100.0,12.0,0,False,
+10^3,1000.0,25.0,0,False,
+10^4,10000.0,0.0,0,False,
+10^5,100000.0,0.0,0,False,
+10^6,1000000.0,2.0,0,False,
+10^7,10000000.0,2.0,0,False,
+10^8 (Positive Control),100000000.0,61.0,2,False,
+0 (Sterile Negative Control),0.0,19.0,0,False,
