@@ -1,10 +1,10 @@
-name,concentration_cfu_ml,ground_truth_positive,overall_positive,total_detection_score,load_tier,concordance_status,concordance_discordance_min,sd_detected,sd_first_detection_min,sd_event_count,slope_detected,slope_first_detection_min,slope_total_score,rg_auc,rb_auc,gb_auc,time_to_ratio_threshold,rate_of_change_rg,final_RG_ratio,final_RB_ratio,final_GB_ratio
-10^1 copy,10.0,False,False,45.0,negative,concordant_negative,,False,,0,False,,45.0,194.8613,101.2907,62.7746,15,0.0019,1.6778146000432252,0.9301329405250264,0.5543717004683941
-10^2,100.0,False,False,40.0,negative,concordant_negative,,False,,0,False,,40.0,175.9262,104.5655,71.5209,15,0.0019,1.5179416302206508,0.9580171059296633,0.6311290766959682
-10^3,1000.0,False,False,41.0,negative,concordant_negative,,False,,0,False,,41.0,166.4399,105.579,76.5403,,0.0001,1.4296864021822533,0.9635250951438176,0.6739415640177282
-10^4,10000.0,False,True,32.0,heavy  (≥10^7),algorithm_discordant,,True,50,3,False,,29.0,129.2968,118.2803,109.947,,-0.0029,1.0591232566931452,1.0512687115620913,0.9925839169046735
-10^5,100000.0,True,False,16.0,negative,concordant_negative,,False,,0,False,,16.0,168.4607,109.5122,77.9158,,0.0017,1.4665806906720236,1.0233582183825243,0.6977851399254075
-10^6,1000000.0,True,True,57.0,moderate (≥10^6),timing_discordant,40.0,True,115,3,True,75,54.0,209.9524,109.1407,62.3922,15,0.006,1.9151872327277566,1.0919119497677685,0.570133258826136
-10^7,10000000.0,True,True,68.0,moderate (≥10^6),concordant_positive,10.0,True,65,12,True,75,56.0,306.7828,154.8574,59.4821,10,0.0049,3.4538228624297256,1.90726115134155,0.5522174141351047
-10^8 (Positive Control),100000000.0,True,True,70.0,heavy  (≥10^7),timing_discordant,15.0,True,65,5,True,50,65.0,202.797,195.2179,114.9235,15,-0.0093,1.7491045059401071,1.8910873201497107,1.0811745725555406
-0 (Sterile Negative Control),0.0,False,False,17.0,negative,concordant_negative,,False,,0,False,,17.0,122.5793,122.0325,119.6299,,-0.0021,0.9865237094515898,1.0344407114993732,1.048571566917501
+name,concentration_cfu_ml,ground_truth_positive,overall_positive,total_detection_score,load_tier,concordance_status,concordance_discordance_min,sd_detected,sd_first_detection_min,sd_event_count,slope_detected,slope_first_detection_min,slope_total_score,likert_detected,likert_first_detection_min,likert_event_count,rg_auc,rb_auc,gb_auc,time_to_ratio_threshold,rate_of_change_rg,final_RG_ratio,final_RB_ratio,final_GB_ratio
+10^1 ,10.0,False,False,42.0,negative,concordant_negative,,False,,0,False,,42.0,False,,0,204.2645,88.355,52.4422,15,0.0026,1.7765431628284625,0.8043603984214204,0.4527671539466627
+10^2,100.0,False,False,33.0,negative,concordant_negative,,False,,0,False,,33.0,False,,0,184.0038,90.7842,59.5382,15,0.0026,1.6067337263717563,0.8245787211379227,0.5132018466108702
+10^3,1000.0,False,False,39.0,negative,concordant_negative,,False,,0,False,,39.0,False,,0,163.9401,94.1634,69.4014,,0.0002,1.4089249256151963,0.8461325657971501,0.6005519148110736
+10^4,10000.0,False,False,17.0,negative,concordant_negative,,False,,0,False,,17.0,False,,0,129.3251,105.6858,98.2473,,-0.0027,1.0619050732872573,0.9286522932732459,0.8745153553122721
+10^5,100000.0,True,False,12.0,negative,concordant_negative,,False,,0,False,,12.0,False,,0,171.0108,95.7009,67.1084,15,0.0021,1.4993451586461806,0.889033869297094,0.5929481008707224
+10^6,1000000.0,True,True,51.0,moderate (≥10^6),algorithm_discordant,,False,,1,True,80,50.0,False,,0,208.2702,103.2118,65.1115,15,0.0016,2.2242860199819527,0.7511952249363527,0.33772419874012144
+10^7,10000000.0,True,True,69.0,moderate (≥10^6),concordant_positive,5.0,True,70,11,True,75,52.0,True,95,6,296.8805,134.0436,53.3576,10,0.0034,3.326107431659583,1.6285353043242499,0.48962197463798934
+10^8 (Positive Control),100000000.0,True,True,72.0,heavy  (≥10^7),concordant_positive,10.0,True,65,5,True,55,51.0,True,45,16,198.1969,165.9769,100.2694,15,-0.0142,1.6564756735598904,1.5447767513636015,0.9325683275766757
+0 (Sterile Negative Control),0.0,False,False,6.0,negative,concordant_negative,,False,,0,False,,6.0,False,,0,126.1974,115.149,109.5767,,-0.0018,1.031886291846066,0.974248267323796,0.9441430462604646

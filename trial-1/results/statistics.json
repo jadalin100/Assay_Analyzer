@@ -6,31 +6,31 @@
       "direction": "higher = stronger / earlier detection across both algorithms",
       "groups": {
         "10^1": [
-          45.0
+          42.0
         ],
         "10^2": [
-          40.0
+          33.0
         ],
         "10^3": [
-          41.0
+          39.0
         ],
         "10^4": [
-          32.0
+          17.0
         ],
         "10^5": [
-          16.0
+          12.0
         ],
         "10^6": [
-          57.0
+          51.0
         ],
         "10^7": [
-          68.0
+          69.0
         ],
         "10^8": [
-          70.0
+          72.0
         ],
         "0 (negative)": [
-          17.0
+          6.0
         ]
       },
       "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
@@ -57,6 +57,9 @@
         "10^2": [
           15.0
         ],
+        "10^5": [
+          15.0
+        ],
         "10^6": [
           15.0
         ],
@@ -67,10 +70,10 @@
           15.0
         ]
       },
-      "replication_warning": "Groups ['10^1', '10^2', '10^6', '10^7', '10^8'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
+      "replication_warning": "Groups ['10^1', '10^2', '10^5', '10^6', '10^7', '10^8'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
       "test": "Kruskal-Wallis",
-      "statistic": 4.0,
-      "p_value": 0.40600584970983794,
+      "statistic": 4.999999999999998,
+      "p_value": 0.4158801869955082,
       "significant": false
     },
     {
@@ -79,31 +82,31 @@
       "direction": "higher = more conversion by end of assay",
       "groups": {
         "10^1": [
-          1.6778146000432252
+          1.7765431628284625
         ],
         "10^2": [
-          1.5179416302206508
+          1.6067337263717563
         ],
         "10^3": [
-          1.4296864021822533
+          1.4089249256151963
         ],
         "10^4": [
-          1.0591232566931452
+          1.0619050732872573
         ],
         "10^5": [
-          1.4665806906720236
+          1.4993451586461806
         ],
         "10^6": [
-          1.9151872327277566
+          2.2242860199819527
         ],
         "10^7": [
-          3.4538228624297256
+          3.326107431659583
         ],
         "10^8": [
-          1.7491045059401071
+          1.6564756735598904
         ],
         "0 (negative)": [
-          0.9865237094515898
+          1.031886291846066
         ]
       },
       "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
