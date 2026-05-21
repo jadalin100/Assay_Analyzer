@@ -1,10 +1,10 @@
-name,concentration_cfu_ml,ground_truth_positive,overall_positive,total_detection_score,load_tier,concordance_status,concordance_discordance_min,sd_detected,sd_first_detection_min,sd_event_count,slope_detected,slope_first_detection_min,slope_total_score,rg_auc,rb_auc,gb_auc,time_to_ratio_threshold,rate_of_change_rg,final_RG_ratio,final_RB_ratio,final_GB_ratio
-10^1 ,10.0,False,False,22.0,negative,concordant_negative,,False,,0,False,,22.0,148.9219,113.4088,91.927,,0.0146,1.478089453460839,1.0155199287333379,0.6870490297965508
-10^2,100.0,False,False,12.0,negative,concordant_negative,,False,,0,False,,12.0,144.6346,108.7445,90.6621,,0.0094,1.3751570509322184,0.9404545678411597,0.683888842648297
-10^3,1000.0,False,False,25.0,negative,concordant_negative,,False,,0,False,,25.0,138.4347,105.5888,91.913,,0.0064,1.2676881964319011,0.8735330765458263,0.6890756534806122
-10^4,10000.0,False,False,0.0,negative,concordant_negative,,False,,0,False,,0.0,120.0005,121.8613,122.052,,0.0005,0.9801130173827279,0.9908238133094721,1.0109281239559655
-10^5,100000.0,True,False,0.0,negative,concordant_negative,,False,,0,False,,0.0,123.5597,131.8073,128.0306,,0.0012,1.0459865353781221,1.1027146232705942,1.0542340530756666
-10^6,1000000.0,True,True,4.0,low  (≥10^5),algorithm_discordant,,True,120,2,False,,2.0,137.6695,139.5124,130.3134,125,0.0217,1.5226132263845,0.7248012347587992,0.4760245180597659
-10^7,10000000.0,True,False,2.0,negative,concordant_negative,,False,,0,False,,2.0,130.4395,156.8926,144.0349,,0.0006,1.113463634619984,1.4369091964804361,1.2904859729128793
-10^8 (Positive Control),100000000.0,True,True,72.0,heavy  (≥10^7),algorithm_discordant,,True,25,11,False,,61.0,147.5101,186.2102,151.6519,,-0.0103,1.1730989788834827,1.7030523207464592,1.4517550174788603
-0 (Sterile Negative Control),0.0,False,False,19.0,negative,concordant_negative,,False,,0,False,,19.0,131.994,105.2125,95.7737,,0.0073,1.2111335459368255,0.9333232311851535,0.7706195835606102
+name,concentration_cfu_ml,ground_truth_positive,overall_positive,total_detection_score,load_tier,concordance_status,concordance_discordance_min,sd_detected,sd_first_detection_min,sd_event_count,slope_detected,slope_first_detection_min,slope_total_score,likert_detected,likert_first_detection_min,likert_event_count,rg_auc,rb_auc,gb_auc,time_to_ratio_threshold,rate_of_change_rg,final_RG_ratio,final_RB_ratio,final_GB_ratio
+10^1 ,10.0,False,False,26.0,negative,concordant_negative,,False,,0,False,,26.0,False,,0,146.6726,116.4118,95.624,,0.0141,1.4433879688215159,1.0441306389148186,0.7233887616979799
+10^2,100.0,False,False,20.0,negative,concordant_negative,,False,,0,False,,20.0,False,,0,147.4245,110.215,90.1626,,0.0109,1.4220041480419279,0.9590932686810802,0.6744658693738053
+10^3,1000.0,False,True,52.0,low  (≥10^5),algorithm_discordant,,False,,0,True,95,52.0,False,,0,143.3825,105.415,88.7786,,0.0092,1.3529695475603096,0.877041487012429,0.648234457754254
+10^4,10000.0,False,False,18.0,negative,concordant_negative,,False,,0,False,,18.0,False,,0,115.1595,131.2176,137.5674,,-0.0024,0.8910335477383949,1.0801393309509066,1.2122319489163
+10^5,100000.0,True,False,18.0,negative,concordant_negative,,False,,0,False,,18.0,False,,0,122.003,135.7627,133.6481,,0.0005,1.0186742326725586,1.140979200242677,1.1200628878066137
+10^6,1000000.0,True,True,25.0,low  (≥10^5),algorithm_discordant,,True,120,2,False,,22.0,False,,1,133.4582,147.6432,143.0068,125,0.0243,1.5304289528934536,0.7269920814418643,0.4750250395705015
+10^7,10000000.0,True,True,38.0,moderate (≥10^6),concordant_negative,,False,,0,False,,26.0,True,65,12,128.6635,163.7438,152.5422,,-0.0012,1.069854785224563,1.521516815755915,1.4221713496644055
+10^8 (Positive Control),100000000.0,True,True,80.0,heavy  (≥10^7),algorithm_discordant,,True,75,4,False,,57.0,True,0,19,150.6067,199.6511,159.7841,,-0.0139,1.1623595328080738,1.8473615513302313,1.589320266682639
+0 (Sterile Negative Control),0.0,False,False,22.0,negative,concordant_negative,,False,,0,False,,22.0,False,,0,122.439,118.2223,116.0178,,0.0011,1.0293934116007426,1.0552096134036317,1.025079044403088
