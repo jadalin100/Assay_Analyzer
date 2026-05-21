@@ -6,31 +6,31 @@
       "direction": "higher = stronger / earlier detection across both algorithms",
       "groups": {
         "10^1": [
-          6.0
+          18.0
         ],
         "10^2": [
-          31.0
+          42.0
         ],
         "10^3": [
-          3.0
+          12.0
         ],
         "10^4": [
-          34.0
+          22.0
         ],
         "10^5": [
-          4.0
+          11.0
         ],
         "10^6": [
-          28.0
+          32.0
         ],
         "10^7": [
-          59.0
+          55.0
         ],
         "10^8": [
-          56.0
+          68.0
         ],
         "0 (negative)": [
-          48.0
+          39.0
         ]
       },
       "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
@@ -73,31 +73,31 @@
       "direction": "higher = more conversion by end of assay",
       "groups": {
         "10^1": [
-          1.1113462549663515
+          1.1592110294262459
         ],
         "10^2": [
-          1.2951292998974209
+          1.3886353326793655
         ],
         "10^3": [
-          1.0998154664922966
+          1.1240999846545197
         ],
         "10^4": [
-          1.084457263420611
+          1.1069557176876972
         ],
         "10^5": [
-          1.3549044773882268
+          1.4266280816701884
         ],
         "10^6": [
-          1.9066988016222375
+          2.0489671631021698
         ],
         "10^7": [
-          2.696008769942434
+          2.834375653202044
         ],
         "10^8": [
-          1.7912482997965822
+          1.936020437559721
         ],
         "0 (negative)": [
-          1.0575034964117838
+          1.0598291042464565
         ]
       },
       "replication_warning": "Groups ['10^1', '10^2', '10^3', '10^4', '10^5', '10^6', '10^7', '10^8', '0 (negative)'] have fewer than 3 replicates. Run 3+ wells per concentration for valid ANOVA. Test result is shown but has very low statistical power.",
