@@ -250,8 +250,8 @@ LIKERT_REFERENCE_COLORS = [
     ( 94,  86, 198),   # Level 1 — No change        (Negative)
     ( 80,  68, 175),   # Level 2 — Slight change    (Likely negative)
     ( 92,  30, 154),   # Level 3 — Moderate change  (Ambiguous)
-    (179,  46, 166),   # Level 4 — Clear change     (Likely positive)
-    (188,   2, 152),   # Level 5 — Definite change  (Positive)
+    (210,  50, 158),   # Level 4 — Clear change     (Likely positive)
+    (240,  60, 135),   # Level 5 — Definite change  (Positive) — bright hot pink (ref: resorufin fully converted)
 ]
 
 # Minimum Likert level to count as a "positive event" at a timepoint.
