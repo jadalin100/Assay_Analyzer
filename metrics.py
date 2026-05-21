@@ -31,7 +31,11 @@ def compute_metrics(results: list[dict]) -> dict:
     Returns a dict with metrics for each algorithm.
     """
     metrics = {}
-    for algo, key in [("SD", "sd_detected"), ("Slope", "slope_detected")]:
+    for algo, key in [
+        ("SD",     "sd_detected"),
+        ("Slope",  "slope_detected"),
+        ("Likert", "likert_detected"),
+    ]:
         TP, TN, FP, FN = _confusion(results, key)
         sensitivity = _safe_div(TP, TP + FN) * 100
         specificity = _safe_div(TN, TN + FP) * 100

@@ -129,26 +129,67 @@ def plot_slope_scores(results: list[dict], out_dir: str):
 
 
 def plot_performance_summary(metrics: dict, out_dir: str):
-    """Bar chart of Sensitivity, Specificity, PPV, NPV for both algorithms."""
-    algos = list(metrics.keys())
+    """
+    Grouped bar chart of Sensitivity, Specificity, PPV, NPV for all algorithms
+    (SD, Slope, Likert).  Confusion matrix counts shown below each bar.
+    """
+    algos        = list(metrics.keys())
     metric_names = ["sensitivity_pct", "specificity_pct", "PPV_pct", "NPV_pct"]
-    labels = ["Sensitivity", "Specificity", "PPV", "NPV"]
-    x = np.arange(len(labels))
-    width = 0.35
+    labels       = ["Sensitivity", "Specificity", "PPV", "NPV"]
+    n_algos      = len(algos)
+    x            = np.arange(len(labels))
+    width        = 0.22
+    # Centre the group of bars on each x tick
+    offsets      = [(i - (n_algos - 1) / 2) * width for i in range(n_algos)]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    algo_colors = {
+        "SD":     "#4C9BE8",
+        "Slope":  "#E87B4C",
+        "Likert": "#6EC46E",
+    }
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
     for i, algo in enumerate(algos):
         vals = [metrics[algo].get(m, 0) for m in metric_names]
-        vals = [0 if (v != v) else v for v in vals]  # replace NaN with 0
-        ax.bar(x + i * width, vals, width, label=algo)
+        vals = [0 if (v != v) else v for v in vals]   # replace NaN with 0
+        color = algo_colors.get(algo, f"C{i}")
+        bars = ax.bar(x + offsets[i], vals, width, label=algo, color=color,
+                      edgecolor="white", linewidth=0.5)
 
-    ax.set_title("Algorithm Performance", fontsize=13, fontweight="bold")
-    ax.set_xticks(x + width / 2)
-    ax.set_xticklabels(labels)
+        # Annotate each bar: percentage on top, confusion matrix fraction below
+        m = metrics[algo]
+        cm_labels = {
+            "sensitivity_pct": f"TP={m['TP']} FN={m['FN']}",
+            "specificity_pct": f"TN={m['TN']} FP={m['FP']}",
+            "PPV_pct":         f"TP={m['TP']} FP={m['FP']}",
+            "NPV_pct":         f"TN={m['TN']} FN={m['FN']}",
+        }
+        for bar, val, mname in zip(bars, vals, metric_names):
+            if val > 0:
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 1.2,
+                    f"{val:.0f}%",
+                    ha="center", va="bottom", fontsize=7.5, fontweight="bold",
+                )
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                2,
+                cm_labels[mname],
+                ha="center", va="bottom", fontsize=6, color="white",
+                rotation=90,
+            )
+
+    ax.set_title("Algorithm Performance — Sensitivity / Specificity / PPV / NPV",
+                 fontsize=12, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=11)
     ax.set_ylabel("Percentage (%)")
-    ax.set_ylim(0, 110)
-    ax.legend()
+    ax.set_ylim(0, 118)
     ax.axhline(100, color="green", ls="--", lw=0.8, alpha=0.5)
+    ax.legend(title="Algorithm", fontsize=9)
+    ax.grid(axis="y", alpha=0.25)
     plt.tight_layout()
     _save(fig, os.path.join(out_dir, "performance_summary.png"))
 

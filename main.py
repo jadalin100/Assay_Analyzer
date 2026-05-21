@@ -247,11 +247,12 @@ def _save_csv(results: list[dict], path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Smartphone Colorimetric Assay Analyzer")
-    parser.add_argument("--data_dir", default="data/", help="Path to data folder")
+    parser.add_argument("--data_dir",     default="data/",            help="Path to data folder")
+    parser.add_argument("--results_dir",  default=config.RESULTS_DIR, help="Where to write results")
     args = parser.parse_args()
 
-    data_dir = args.data_dir
-    results_dir = config.RESULTS_DIR
+    data_dir    = args.data_dir
+    results_dir = args.results_dir
     os.makedirs(results_dir, exist_ok=True)
 
     # ── Stage 1: Load ─────────────────────────────────────────────────────────
