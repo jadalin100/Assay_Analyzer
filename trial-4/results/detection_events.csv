@@ -1,11 +1,11 @@
 # DETECTION EVENTS — timepoints where each algorithm's criteria were met
-group,concentration_cfu_ml,sd_event_count,sd_event_timepoints_min,sd_detected,sd_first_detection_min,slope_event_count,slope_event_timepoints_min,slope_detected,slope_first_detection_min,slope_total_score,total_detection_score,concordance_status,concordance_discordance_min
-10^1 ,10.0,3,110;115;120,True,110,1,110,False,,6.0,9.0,algorithm_discordant,
-10^2,100.0,3,110;115;120,True,110,0,,False,,6.0,9.0,algorithm_discordant,
-10^3,1000.0,1,50,False,,0,,False,,41.0,42.0,concordant_negative,
-10^4,10000.0,5,25;30;40;45;50,True,25,0,,False,,40.0,45.0,algorithm_discordant,
-10^5,100000.0,3,25;30;35,True,25,0,,False,,50.0,53.0,algorithm_discordant,
-10^6,1000000.0,0,,False,,1,125,False,,32.0,32.0,concordant_negative,
-10^7,10000000.0,3,110;115;120,True,110,1,110,False,,41.0,44.0,algorithm_discordant,
-10^8 (Positive Control),100000000.0,9,80;85;90;95;100;105;110;115;120,True,80,1,110,False,,55.0,64.0,algorithm_discordant,
-0 (Sterile Negative Control),0.0,4,25;30;35;40,True,25,0,,False,,37.0,41.0,algorithm_discordant,
+group,concentration_cfu_ml,sd_event_count,sd_event_timepoints_min,sd_detected,sd_first_detection_min,slope_event_count,slope_event_timepoints_min,slope_detected,slope_first_detection_min,slope_total_score,likert_event_count,likert_event_timepoints_min,likert_detected,likert_first_detection_min,total_detection_score,concordance_status,concordance_discordance_min
+10^1 ,10.0,0,,False,,0,,False,,5.0,0,,False,,5.0,concordant_negative,
+10^2,100.0,3,110;115;120,True,110,0,,False,,8.0,0,,False,,11.0,algorithm_discordant,
+10^3,1000.0,0,,False,,0,,False,,40.0,0,,False,,40.0,concordant_negative,
+10^4,10000.0,0,,False,,1,50,False,,48.0,0,,False,,48.0,concordant_negative,
+10^5,100000.0,3,25;30;35,True,25,0,,False,,49.0,0,,False,,52.0,algorithm_discordant,
+10^6,1000000.0,0,,False,,1,125,False,,30.0,0,,False,,30.0,concordant_negative,
+10^7,10000000.0,4,105;110;115;120,True,105,1,110,False,,41.0,8,0;90;95;100;105;110;115;120,True,90,53.0,algorithm_discordant,
+10^8 (Positive Control),100000000.0,9,80;85;90;95;100;105;110;115;120,True,80,1,110,False,,55.0,19,0;5;10;45;50;55;60;65;70;75;80;85;90;95;100;105;110;115;120,True,0,83.0,algorithm_discordant,
+0 (Sterile Negative Control),0.0,5,25;30;35;40;45,True,25,0,,False,,38.0,0,,False,,43.0,algorithm_discordant,

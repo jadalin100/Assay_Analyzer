@@ -22,7 +22,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^1 ,10.0,95,0.0,False
 10^1 ,10.0,100,0.0,False
 10^1 ,10.0,105,1.0,False
-10^1 ,10.0,110,5.0,True
+10^1 ,10.0,110,4.0,False
 10^1 ,10.0,115,0.0,False
 10^1 ,10.0,120,0.0,False
 10^2,100.0,0,0.0,False
@@ -49,7 +49,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^2,100.0,105,1.0,False
 10^2,100.0,110,4.0,False
 10^2,100.0,115,1.0,False
-10^2,100.0,120,0.0,False
+10^2,100.0,120,2.0,False
 10^3,1000.0,0,0.0,False
 10^3,1000.0,5,0.0,False
 10^3,1000.0,10,0.0,False
@@ -62,7 +62,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^3,1000.0,45,0.0,False
 10^3,1000.0,50,0.0,False
 10^3,1000.0,55,4.0,False
-10^3,1000.0,60,3.0,False
+10^3,1000.0,60,2.0,False
 10^3,1000.0,65,2.0,False
 10^3,1000.0,70,4.0,False
 10^3,1000.0,75,4.0,False
@@ -85,13 +85,13 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^4,10000.0,35,0.0,False
 10^4,10000.0,40,0.0,False
 10^4,10000.0,45,0.0,False
-10^4,10000.0,50,0.0,False
+10^4,10000.0,50,6.0,True
 10^4,10000.0,55,4.0,False
 10^4,10000.0,60,4.0,False
 10^4,10000.0,65,4.0,False
 10^4,10000.0,70,4.0,False
 10^4,10000.0,75,4.0,False
-10^4,10000.0,80,2.0,False
+10^4,10000.0,80,4.0,False
 10^4,10000.0,85,2.0,False
 10^4,10000.0,90,4.0,False
 10^4,10000.0,95,4.0,False
@@ -121,7 +121,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^5,100000.0,90,4.0,False
 10^5,100000.0,95,4.0,False
 10^5,100000.0,100,4.0,False
-10^5,100000.0,105,1.0,False
+10^5,100000.0,105,0.0,False
 10^5,100000.0,110,0.0,False
 10^5,100000.0,115,1.0,False
 10^5,100000.0,120,4.0,False
@@ -145,7 +145,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^6,1000000.0,85,2.0,False
 10^6,1000000.0,90,2.0,False
 10^6,1000000.0,95,2.0,False
-10^6,1000000.0,100,2.0,False
+10^6,1000000.0,100,0.0,False
 10^6,1000000.0,105,3.0,False
 10^6,1000000.0,110,4.0,False
 10^6,1000000.0,115,3.0,False
@@ -162,7 +162,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^7,10000000.0,40,0.0,False
 10^7,10000000.0,45,0.0,False
 10^7,10000000.0,50,2.0,False
-10^7,10000000.0,55,2.0,False
+10^7,10000000.0,55,0.0,False
 10^7,10000000.0,60,2.0,False
 10^7,10000000.0,65,2.0,False
 10^7,10000000.0,70,2.0,False
@@ -175,7 +175,7 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 10^7,10000000.0,105,3.0,False
 10^7,10000000.0,110,5.0,True
 10^7,10000000.0,115,3.0,False
-10^7,10000000.0,120,2.0,False
+10^7,10000000.0,120,4.0,False
 10^8 (Positive Control),100000000.0,0,0.0,False
 10^8 (Positive Control),100000000.0,5,0.0,False
 10^8 (Positive Control),100000000.0,10,0.0,False
@@ -212,9 +212,9 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 0 (Sterile Negative Control),0.0,40,0.0,False
 0 (Sterile Negative Control),0.0,45,0.0,False
 0 (Sterile Negative Control),0.0,50,0.0,False
-0 (Sterile Negative Control),0.0,55,2.0,False
+0 (Sterile Negative Control),0.0,55,4.0,False
 0 (Sterile Negative Control),0.0,60,2.0,False
-0 (Sterile Negative Control),0.0,65,3.0,False
+0 (Sterile Negative Control),0.0,65,2.0,False
 0 (Sterile Negative Control),0.0,70,4.0,False
 0 (Sterile Negative Control),0.0,75,4.0,False
 0 (Sterile Negative Control),0.0,80,4.0,False
@@ -229,12 +229,12 @@ group,concentration_cfu_ml,time_min,weighted_score,above_threshold
 
 # SLOPE SCORES — PER-GROUP SUMMARY
 group,concentration_cfu_ml,slope_total_score,slope_event_count,detected,first_detection_min
-10^1 ,10.0,6.0,1,False,
-10^2,100.0,6.0,0,False,
-10^3,1000.0,41.0,0,False,
-10^4,10000.0,40.0,0,False,
-10^5,100000.0,50.0,0,False,
-10^6,1000000.0,32.0,1,False,
+10^1 ,10.0,5.0,0,False,
+10^2,100.0,8.0,0,False,
+10^3,1000.0,40.0,0,False,
+10^4,10000.0,48.0,1,False,
+10^5,100000.0,49.0,0,False,
+10^6,1000000.0,30.0,1,False,
 10^7,10000000.0,41.0,1,False,
 10^8 (Positive Control),100000000.0,55.0,1,False,
-0 (Sterile Negative Control),0.0,37.0,0,False,
+0 (Sterile Negative Control),0.0,38.0,0,False,
