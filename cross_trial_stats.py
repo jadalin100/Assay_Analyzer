@@ -125,8 +125,8 @@ def main():
               f"final_RG: {[round(r['final_RG_ratio'],3) if r['final_RG_ratio'] else None for r in rows]}")
 
     # Summary CSV
-    summary_metrics = ["total_detection_score", "rg_auc", "rb_auc",
-                       "final_RG_ratio", "final_RB_ratio", "time_to_ratio_threshold"]
+    summary_metrics = ["total_detection_score", "rg_auc", "rb_auc", "gb_auc",
+                       "final_RG_ratio", "final_RB_ratio", "final_GB_ratio", "time_to_ratio_threshold"]
     _save_summary_csv(
         conc_groups, summary_metrics,
         os.path.join(args.out_dir, "cross_trial_summary.csv")

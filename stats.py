@@ -66,6 +66,11 @@ _METRICS = [
         "direction": "higher = more/faster colour conversion",
     },
     {
+        "key":       "gb_auc",
+        "label":     "AUC of normalized G/B ratio curve (ratio·min)",
+        "direction": "lower = more conversion (G falls as resazurin converts)",
+    },
+    {
         "key":       "time_to_ratio_threshold",
         "label":     f"Time to R/G ≥ {getattr(config, 'RATIO_THRESHOLD', 1.10):.2f} (min)",
         "direction": "lower = faster conversion; groups that never cross are excluded",
