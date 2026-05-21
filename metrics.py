@@ -26,9 +26,10 @@ def _safe_div(num: float, denom: float) -> float:
 
 def compute_metrics(results: list[dict]) -> dict:
     """
-    Compute sensitivity, specificity, PPV, and NPV for SD and slope algorithms.
+    Compute sensitivity, specificity, PPV, and NPV for each algorithm plus a
+    'Combined' row (positive if ANY of SD / Slope / Likert detected).
 
-    Returns a dict with metrics for each algorithm.
+    Returns an ordered dict: SD, Slope, Likert, Combined.
     """
     metrics = {}
     for algo, key in [
@@ -48,6 +49,33 @@ def compute_metrics(results: list[dict]) -> dict:
             "PPV_pct": ppv,
             "NPV_pct": npv,
         }
-        print(f"  {algo:6s}  Sensitivity: {sensitivity:.1f}%  Specificity: {specificity:.1f}%  "
+        print(f"  {algo:8s}  Sensitivity: {sensitivity:.1f}%  Specificity: {specificity:.1f}%  "
               f"PPV: {ppv:.1f}%  NPV: {npv:.1f}%")
+
+    # Combined: positive when ANY algorithm fires
+    for r in results:
+        r["_combined_detected"] = (
+            r.get("sd_detected") or
+            r.get("slope_detected") or
+            r.get("likert_detected")
+        )
+    TP, TN, FP, FN = _confusion(results, "_combined_detected")
+    sensitivity = _safe_div(TP, TP + FN) * 100
+    specificity = _safe_div(TN, TN + FP) * 100
+    ppv = _safe_div(TP, TP + FP) * 100
+    npv = _safe_div(TN, TN + FN) * 100
+    metrics["Combined"] = {
+        "TP": TP, "TN": TN, "FP": FP, "FN": FN,
+        "sensitivity_pct": sensitivity,
+        "specificity_pct": specificity,
+        "PPV_pct": ppv,
+        "NPV_pct": npv,
+    }
+    print(f"  {'Combined':8s}  Sensitivity: {sensitivity:.1f}%  Specificity: {specificity:.1f}%  "
+          f"PPV: {ppv:.1f}%  NPV: {npv:.1f}%")
+
+    # Clean up temporary key
+    for r in results:
+        r.pop("_combined_detected", None)
+
     return metrics

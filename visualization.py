@@ -130,67 +130,119 @@ def plot_slope_scores(results: list[dict], out_dir: str):
 
 def plot_performance_summary(metrics: dict, out_dir: str):
     """
-    Grouped bar chart of Sensitivity, Specificity, PPV, NPV for all algorithms
-    (SD, Slope, Likert).  Confusion matrix counts shown below each bar.
+    Two-panel figure:
+      Top:    Grouped bar chart — Sensitivity / Specificity / PPV / NPV
+              per algorithm (SD, Slope, Likert, Combined).
+      Bottom: Raw-counts table — TP / TN / FP / FN and fraction strings
+              (e.g. "3/4 = 75%") for Sensitivity and Specificity per algorithm.
     """
-    algos        = list(metrics.keys())
-    metric_names = ["sensitivity_pct", "specificity_pct", "PPV_pct", "NPV_pct"]
-    labels       = ["Sensitivity", "Specificity", "PPV", "NPV"]
-    n_algos      = len(algos)
-    x            = np.arange(len(labels))
-    width        = 0.22
-    # Centre the group of bars on each x tick
-    offsets      = [(i - (n_algos - 1) / 2) * width for i in range(n_algos)]
-
     algo_colors = {
-        "SD":     "#4C9BE8",
-        "Slope":  "#E87B4C",
-        "Likert": "#6EC46E",
+        "SD":       "#4C9BE8",
+        "Slope":    "#E87B4C",
+        "Likert":   "#6EC46E",
+        "Combined": "#9B59B6",
     }
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    algos        = list(metrics.keys())
+    metric_names = ["sensitivity_pct", "specificity_pct", "PPV_pct", "NPV_pct"]
+    bar_labels   = ["Sensitivity", "Specificity", "PPV", "NPV"]
+    n_algos      = len(algos)
+    x            = np.arange(len(bar_labels))
+    width        = 0.18
+    offsets      = [(i - (n_algos - 1) / 2) * width for i in range(n_algos)]
 
+    fig, (ax_bar, ax_tbl) = plt.subplots(
+        2, 1, figsize=(12, 9),
+        gridspec_kw={"height_ratios": [3, 1]},
+    )
+
+    # ── Top: bar chart ────────────────────────────────────────────────────────
     for i, algo in enumerate(algos):
-        vals = [metrics[algo].get(m, 0) for m in metric_names]
-        vals = [0 if (v != v) else v for v in vals]   # replace NaN with 0
+        vals  = [metrics[algo].get(m, 0) for m in metric_names]
+        vals  = [0 if (v != v) else v for v in vals]
         color = algo_colors.get(algo, f"C{i}")
-        bars = ax.bar(x + offsets[i], vals, width, label=algo, color=color,
-                      edgecolor="white", linewidth=0.5)
-
-        # Annotate each bar: percentage on top, confusion matrix fraction below
-        m = metrics[algo]
-        cm_labels = {
-            "sensitivity_pct": f"TP={m['TP']} FN={m['FN']}",
-            "specificity_pct": f"TN={m['TN']} FP={m['FP']}",
-            "PPV_pct":         f"TP={m['TP']} FP={m['FP']}",
-            "NPV_pct":         f"TN={m['TN']} FN={m['FN']}",
-        }
-        for bar, val, mname in zip(bars, vals, metric_names):
+        # Combined gets a slightly different style (hatched) to stand out
+        hatch = "//" if algo == "Combined" else None
+        bars  = ax_bar.bar(x + offsets[i], vals, width, label=algo,
+                           color=color, edgecolor="white", linewidth=0.5,
+                           hatch=hatch, alpha=0.9 if algo != "Combined" else 0.75)
+        for bar, val in zip(bars, vals):
             if val > 0:
-                ax.text(
+                ax_bar.text(
                     bar.get_x() + bar.get_width() / 2,
-                    bar.get_height() + 1.2,
+                    bar.get_height() + 1.0,
                     f"{val:.0f}%",
-                    ha="center", va="bottom", fontsize=7.5, fontweight="bold",
+                    ha="center", va="bottom", fontsize=7, fontweight="bold",
                 )
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                2,
-                cm_labels[mname],
-                ha="center", va="bottom", fontsize=6, color="white",
-                rotation=90,
-            )
 
-    ax.set_title("Algorithm Performance — Sensitivity / Specificity / PPV / NPV",
-                 fontsize=12, fontweight="bold")
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=11)
-    ax.set_ylabel("Percentage (%)")
-    ax.set_ylim(0, 118)
-    ax.axhline(100, color="green", ls="--", lw=0.8, alpha=0.5)
-    ax.legend(title="Algorithm", fontsize=9)
-    ax.grid(axis="y", alpha=0.25)
-    plt.tight_layout()
+    ax_bar.set_title(
+        "Algorithm Performance — Sensitivity / Specificity / PPV / NPV",
+        fontsize=13, fontweight="bold",
+    )
+    ax_bar.set_xticks(x)
+    ax_bar.set_xticklabels(bar_labels, fontsize=11)
+    ax_bar.set_ylabel("Percentage (%)")
+    ax_bar.set_ylim(0, 118)
+    ax_bar.axhline(100, color="green", ls="--", lw=0.8, alpha=0.5)
+    ax_bar.legend(title="Algorithm", fontsize=9, loc="upper left")
+    ax_bar.grid(axis="y", alpha=0.25)
+
+    # ── Bottom: raw-counts table ──────────────────────────────────────────────
+    # Columns: Algorithm | TP | TN | FP | FN | Sensitivity (raw) | Specificity (raw)
+    col_labels = ["Algorithm", "TP", "TN", "FP", "FN",
+                  "Sensitivity", "Specificity", "PPV", "NPV"]
+    table_data = []
+    for algo in algos:
+        m   = metrics[algo]
+        tp, tn, fp, fn = m["TP"], m["TN"], m["FP"], m["FN"]
+        sens = m["sensitivity_pct"]
+        spec = m["specificity_pct"]
+        ppv  = m["PPV_pct"]
+        npv  = m["NPV_pct"]
+
+        def _frac(num, denom, pct):
+            if denom == 0:
+                return "N/A"
+            return f"{num}/{denom} = {pct:.0f}%"
+
+        table_data.append([
+            algo,
+            str(tp), str(tn), str(fp), str(fn),
+            _frac(tp, tp + fn, sens),
+            _frac(tn, tn + fp, spec),
+            _frac(tp, tp + fp, ppv),
+            _frac(tn, tn + fn, npv),
+        ])
+
+    ax_tbl.axis("off")
+    tbl = ax_tbl.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        loc="center",
+        cellLoc="center",
+    )
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(9)
+    tbl.scale(1, 1.6)
+
+    # Colour the header row and the Combined row
+    for (row, col), cell in tbl.get_celld().items():
+        if row == 0:
+            cell.set_facecolor("#2c3e50")
+            cell.set_text_props(color="white", fontweight="bold")
+        elif table_data[row - 1][0] == "Combined":
+            cell.set_facecolor("#f3e8ff")
+        elif row % 2 == 0:
+            cell.set_facecolor("#f7f7f7")
+        # Highlight FP > 0 in orange
+        if row > 0 and col == 3:  # FP column
+            try:
+                if int(table_data[row - 1][3]) > 0:
+                    cell.set_facecolor("#ffe0b2")
+            except ValueError:
+                pass
+
+    plt.tight_layout(rect=[0, 0, 1, 1])
     _save(fig, os.path.join(out_dir, "performance_summary.png"))
 
 
@@ -202,6 +254,9 @@ def plot_per_group(results: list[dict], out_dir: str):
     groups_dir = os.path.join(out_dir, "groups")
     os.makedirs(groups_dir, exist_ok=True)
 
+    # Track which filenames are generated so we can remove stale ones afterwards
+    generated_filenames: set[str] = set()
+
     for r in results:
         name = r["name"]
         t = r["rgb_data"]["times"]
@@ -211,12 +266,13 @@ def plot_per_group(results: list[dict], out_dir: str):
         conc_str = "0 (control)" if conc == 0 else f"{conc:.0e} CFU/mL"
         sd_det = "DETECTED" if r["sd_detected"] else "not detected"
         sl_det = "DETECTED" if r["slope_detected"] else "not detected"
+        lk_det = "DETECTED" if r.get("likert_detected") else "not detected"
         is_pos = r.get("ground_truth_positive", False)
         clinical_str = "CLINICAL POSITIVE (≥10⁵ CFU/mL)" if is_pos else "CLINICAL NEGATIVE (<10⁵ CFU/mL)"
         title_color = "#cc0000" if is_pos else "#003399"
         fig.suptitle(
             f"Group: {name}   |   Concentration: {conc_str}   |   {clinical_str}\n"
-            f"SD algorithm: {sd_det}   |   Slope algorithm: {sl_det}",
+            f"SD: {sd_det}   |   Slope: {sl_det}   |   Likert: {lk_det}",
             fontsize=12, fontweight="bold", y=0.98, color=title_color,
         )
 
@@ -386,12 +442,57 @@ def plot_per_group(results: list[dict], out_dir: str):
             fontfamily="monospace",
             bbox=dict(boxstyle="round", facecolor=box_color, alpha=0.8),
         )
-        axes[3][1].axis("off")
+        # ── (3,1) Likert colour-match level over time ─────────────────────────
+        ax = axes[3][1]
+        lk = r.get("likert_result", {})
+        lk_times  = lk.get("times", t)
+        lk_scores = lk.get("likert_scores", [])
+        lk_events = lk.get("event_flags", [])
+        lk_thresh = int(getattr(config, "LIKERT_POSITIVE_THRESHOLD", 4))
+        ref_colors = getattr(config, "LIKERT_REFERENCE_COLORS",
+                             [(94,86,198),(80,68,175),(92,30,154),(179,46,166),(188,2,152)])
+        n_levels = len(ref_colors)
+
+        if lk_scores:
+            ax.step(lk_times, lk_scores, where="post", color="#9B59B6", lw=2)
+            # Shade events (above threshold) green
+            for ti, score, flag in zip(lk_times, lk_scores, lk_events):
+                if flag:
+                    ax.axvspan(ti, ti + getattr(config, "CAPTURE_INTERVAL_MIN", 5),
+                               color="#6EC46E", alpha=0.25)
+            # Right-hand colour swatches
+            for lvl_idx, rgb in enumerate(ref_colors):
+                lvl = lvl_idx + 1
+                cnorm = tuple(c / 255 for c in rgb)
+                ax.barh(lvl, 0, left=max(lk_times) * 1.01, height=0.6, color=cnorm)
+        ax.axhline(lk_thresh - 0.5, color="#c0392b", ls=":", lw=1.2,
+                   label=f"Threshold ≥{lk_thresh}")
+        if lk.get("detected") and lk.get("first_detection_min") is not None:
+            ax.axvline(lk["first_detection_min"], color="black", ls="-.", lw=1.2,
+                       label=f"Det @ {lk['first_detection_min']:.0f} min")
+        ax.set_xlim(left=0)
+        ax.set_ylim(0.5, n_levels + 0.5)
+        ax.set_yticks(list(range(1, n_levels + 1)))
+        ax.set_yticklabels([f"L{i}" for i in range(1, n_levels + 1)], fontsize=8)
+        ax.set_title(f"Likert Colour-Match Level  [{lk_det}]")
+        ax.set_xlabel("Time (min)")
+        ax.set_ylabel("Level")
+        ax.legend(fontsize=7)
+        ax.grid(True, alpha=0.3)
 
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         safe_name = name.replace("/", "_").replace(" ", "_")
-        out_path = os.path.join(groups_dir, f"{safe_name}.png")
+        fname = f"{safe_name}.png"
+        out_path = os.path.join(groups_dir, fname)
+        generated_filenames.add(fname)
         _save(fig, out_path)
+
+    # ── Remove stale group PNGs (from old runs with different group names) ────
+    for existing in os.listdir(groups_dir):
+        if existing.endswith(".png") and existing not in generated_filenames:
+            stale_path = os.path.join(groups_dir, existing)
+            os.remove(stale_path)
+            print(f"  Removed stale group file: {stale_path}")
 
 
 def plot_total_detection_scores(results: list[dict], out_dir: str):
