@@ -52,12 +52,17 @@ except ImportError:
 _METRICS = [
     {
         "key":       "total_detection_score",
-        "label":     "Total detection score (SD event count + slope weighted score)",
-        "direction": "higher = stronger / earlier detection across both algorithms",
+        "label":     "Total detection score (SD + slope + Likert event counts)",
+        "direction": "higher = stronger / earlier detection across all algorithms",
     },
     {
-        "key":       "ratio_auc",
-        "label":     "AUC of normalized R/G ratio (ratio·min)",
+        "key":       "rg_auc",
+        "label":     "AUC of normalized R/G ratio curve (ratio·min)",
+        "direction": "higher = more/faster colour conversion",
+    },
+    {
+        "key":       "rb_auc",
+        "label":     "AUC of normalized R/B ratio curve (ratio·min)",
         "direction": "higher = more/faster colour conversion",
     },
     {
