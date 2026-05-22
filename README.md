@@ -231,20 +231,6 @@ With four trials completed, each concentration group has N=4 independent replica
 
 R/B AUC (the only metric meeting normality and equal-variance assumptions) was analyzed by one-way ANOVA. Tukey HSD post-hoc showed 10⁸ significantly higher than all other groups (p ≤ 0.001). Kruskal-Wallis was used for the remaining metrics due to Shapiro-Wilk or Levene violations in one or more groups with N=4. G/B AUC was not significant, consistent with G and B falling together during conversion and producing a relatively stable ratio.
 
-## Human Observer Scoring
-
-`likert_scale.png` is a colorimetric reference card for human observer validation studies. It shows five levels of resazurin conversion derived from actual well photos across all four trials:
-
-| Level | Label | Interpretation |
-|---|---|---|
-| 1 | No change | Negative |
-| 2 | Slight change | Likely negative |
-| 3 | Moderate change | Ambiguous |
-| 4 | Clear change | Likely positive |
-| 5 | Definite change | Positive |
-
-Score ≥ 4 = test positive. Designed for inclusion in research poster presentations.
-
 ## References
 
 - Malanoski, A.P. et al. (2016). Simultaneous Identification of Multiple Analytes Using a Self-Reporting Spectroscopic Hybridization Assay. *Analytical Chemistry.*
