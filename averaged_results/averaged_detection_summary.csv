@@ -1,0 +1,10 @@
+group,concentration_cfu_ml,ground_truth_positive,N_trials,sd_detection_rate,sd_first_detection_min_mean,sd_first_detection_min_sd,slope_detection_rate,slope_first_detection_min_mean,slope_first_detection_min_sd,likert_detection_rate,likert_first_detection_min_mean,likert_first_detection_min_sd,combined_detection_rate,total_detection_score_mean,total_detection_score_sd
+0 (Sterile Negative Control),0.0,False,4,0.5,70.0,63.64,0.0,,,0.0,,,0.5,27.5,16.98
+10^1,10.0,False,4,0.25,110.0,0.0,0.0,,,0.0,,,0.25,22.75,15.48
+10^2,100.0,False,4,0.5,67.5,60.1,0.0,,,0.0,,,0.5,26.5,13.72
+10^3,1000.0,False,4,0.25,105.0,0.0,0.25,95.0,0.0,0.0,,,0.5,35.75,16.9
+10^4,10000.0,False,4,0.25,110.0,0.0,0.0,,,0.0,,,0.25,26.25,14.66
+10^5,100000.0,True,4,0.5,67.5,60.1,0.0,,,0.0,,,0.5,23.25,19.41
+10^6,1000000.0,True,4,0.5,112.5,10.61,0.25,80.0,0.0,0.0,,,0.75,34.5,11.39
+10^7,10000000.0,True,4,0.75,80.0,21.79,0.25,75.0,0.0,1.0,86.25,14.36,1.0,53.75,12.69
+10^8 (Positive Control),100000000.0,True,4,1.0,71.25,7.5,0.5,67.5,17.68,1.0,25.0,29.15,1.0,75.75,6.95
