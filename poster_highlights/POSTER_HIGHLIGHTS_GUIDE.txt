@@ -20,7 +20,8 @@ fig2_rb_auc_bars.png  ← STRONGEST STATISTICAL RESULT
   - CAVEAT: only 10^8 separates — not 10^5 or 10^6
 
 fig3_detection_heatmap.png  ← ALGORITHM COMPARISON
-  - Shows which algorithm detected which concentration in what % of trials
+  - Shows detection rate % AND mean first-detection time in each cell
+  - Cell format: "75% / t=80 min" — gives audience both sensitivity and speed
   - Likert: 100% at 10^7 and 10^8 — most consistent algorithm
   - SD: 50% false-positive rate on sterile negative — show this honestly
   - Combined (any): 100% at 10^7+ but still 50% FP on sterile negative
@@ -31,10 +32,20 @@ fig4_stats_table.png  ← RESULTS TABLE FOR BOARD
   - Shows which are significant, which aren't, and why
   - Use directly on the poster as your "Statistical Analysis" section
 
-fig5_rg_auc_and_final_ratio.png  ← SUPPLEMENTAL / DOSE-RESPONSE
-  - R/G AUC and final R/G ratio side-by-side
-  - Shows dose-response trend even where formal significance wasn't reached
-  - Good for the "Data Analysis" section of the board
+fig5_auc_comparison.png  ← AUC CHANNEL COMPARISON (3 panels)
+  - R/G AUC, R/B AUC, and G/B AUC side by side for direct comparison
+  - Each panel labelled with its test statistic and significance
+  - R/B panel labelled as primary result (★); G/B labelled as not significant
+  - WHY G/B IS INCLUDED BUT LABELLED NS: shows the audience that not every
+    channel is informative; G and B co-vary because both absorb in the same
+    spectral region during resazurin→resorufin conversion, so their ratio
+    is insensitive to the reaction. p=0.394.
+  - WHY TIME-TO-THRESHOLD IS EXCLUDED: The R/G ≥ 1.50 threshold was inflated
+    to account for unlocked auto-exposure artifacts (true biology threshold
+    ~1.10). As a result, clinical negatives 10^1 and 10^2 cross it at t=15 min
+    in Trial 1 (AE spike, not growth), and positives like 10^7 never cross it
+    in Trial 3. Kruskal-Wallis p=0.598. Metric is invalid until auto-exposure
+    is locked and threshold recalibrated to ~1.10.
 
 KEY NUMBERS TO QUOTE ON BOARD
 -------------------------------
@@ -47,7 +58,11 @@ KEY NUMBERS TO QUOTE ON BOARD
 
 WHAT NOT TO PUT ON THE BOARD
 ------------------------------
-  - G/B AUC (not significant, p=0.39)
-  - Time-to-threshold metric (invalid; inflated by auto-exposure artifacts)
+  - G/B AUC as a positive result — include it only as a labelled-NS comparison
+    (already done in fig5). Do not claim significance (p=0.394).
+  - Time-to-threshold metric — invalid; RATIO_THRESHOLD inflated to 1.50 by
+    unlocked auto-exposure artifacts. Negatives cross it at t=15 min; positives
+    miss it entirely in some trials. Kruskal-Wallis p=0.598. Recalibrate to
+    ~1.10 after locking exposure in next trial.
   - Individual per-trial SD/slope score plots (too noisy, trial-dependent)
   - Any sensitivity/specificity claim for 10^5 (missed in 3/4 trials)

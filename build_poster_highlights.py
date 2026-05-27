@@ -8,9 +8,9 @@ Figures produced
 ----------------
 fig1_rg_ratio_timeseries.png   Main result — averaged R/G ratio over time, ±1 SD shading
 fig2_rb_auc_bars.png           Strongest stat — R/B AUC per group, ANOVA p<0.001, Tukey brackets
-fig3_detection_heatmap.png     Detection rate grid: algorithm × concentration group
-fig4_stats_table.png           Cross-trial statistics table (4 metrics, rendered as image)
-fig5_final_rg_ratio.png        Final R/G ratio per group — bar chart with ±1 SD
+fig3_detection_heatmap.png     Detection rate + mean first-detection time: algorithm × group
+fig4_stats_table.png           Cross-trial statistics table (6 metrics, rendered as image)
+fig5_auc_comparison.png        R/G, R/B, G/B AUC side-by-side with p-value annotations
 
 Each figure includes a subtitle / annotation with the relevant statistic.
 """
@@ -252,24 +252,63 @@ for j, g in enumerate(groups_h):
         except ValueError:
             matrix[i, j] = 0.0
 
+# Build first-detection time matrix (NaN where not detected / unavailable)
+indiv_time_keys = [
+    "sd_first_detection_min_mean",
+    "slope_first_detection_min_mean",
+    "likert_first_detection_min_mean",
+]
+indiv_rate_keys = ["sd_detection_rate", "slope_detection_rate", "likert_detection_rate"]
+
+first_det = np.full((len(algorithms), len(groups_h)), np.nan)
+for j, g in enumerate(groups_h):
+    row = det.get(g, {})
+    # Individual algorithm rows (0–2)
+    for i, tkey in enumerate(indiv_time_keys):
+        try:
+            val_str = str(row.get(tkey, "") or "").strip()
+            if val_str and val_str.lower() not in ("nan", "never", ""):
+                first_det[i, j] = float(val_str)
+        except (ValueError, TypeError):
+            pass
+    # Combined row (3): earliest first-detection among algorithms that fired
+    available_times = []
+    for rk, tk in zip(indiv_rate_keys, indiv_time_keys):
+        try:
+            rate = float(row.get(rk, 0) or 0)
+            if rate > 0:
+                t_str = str(row.get(tk, "") or "").strip()
+                if t_str and t_str.lower() not in ("nan", "never", ""):
+                    available_times.append(float(t_str))
+        except (ValueError, TypeError):
+            pass
+    if available_times:
+        first_det[3, j] = min(available_times)
+
 # Custom diverging colormap: grey (0) → pale yellow (0.5) → red (1)
 cmap = LinearSegmentedColormap.from_list(
     "detect",
     [(0.0, "#dddddd"), (0.5, "#ffdd88"), (1.0, "#cc2200")]
 )
 
-fig, ax = plt.subplots(figsize=(11, 4))
+fig, ax = plt.subplots(figsize=(11, 4.8))
 im = ax.imshow(matrix, cmap=cmap, vmin=0, vmax=1, aspect="auto")
 
-# Cell annotations
+# Cell annotations — rate % on top line, mean first-detection time below (where available)
 for i in range(len(algorithms)):
     for j in range(len(groups_h)):
-        val = matrix[i, j]
-        txt = f"{val*100:.0f}%"
-        color = "white" if val > 0.65 else ("#333333" if val > 0.0 else "#aaaaaa")
+        val  = matrix[i, j]
+        tval = first_det[i, j]
+        color  = "white" if val > 0.65 else ("#333333" if val > 0.0 else "#aaaaaa")
         weight = "bold" if val == 1.0 else "normal"
+        if val > 0 and not np.isnan(tval):
+            txt = f"{val*100:.0f}%\nt={tval:.0f} min"
+            fs  = 7.5
+        else:
+            txt = f"{val*100:.0f}%"
+            fs  = 9
         ax.text(j, i, txt, ha="center", va="center",
-                fontsize=9, color=color, fontweight=weight)
+                fontsize=fs, color=color, fontweight=weight, linespacing=1.3)
 
 ax.set_xticks(range(len(groups_h)))
 ax.set_xticklabels([GROUP_LABELS[g] for g in groups_h], fontsize=9)
@@ -286,7 +325,7 @@ ax.text(6.5, -0.8, "Clinical Positives (≥10⁵ CFU/mL)",
         transform=ax.transData, clip_on=False)
 
 ax.set_title("Detection Rate by Algorithm and Concentration Group\n"
-             "(N = 4 trials per group — % of trials where algorithm fired positive)",
+             "(N = 4 trials — % detected | mean first-detection time where applicable)",
              fontsize=10, pad=10)
 
 cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02)
@@ -371,67 +410,63 @@ plt.close(fig)
 print("   → fig4_stats_table.png")
 
 
-# ── FIG 5 — Final R/G ratio bar chart ─────────────────────────────────────────
-print("[5/5] Fig 5: Final R/G ratio bar chart...")
+# ── FIG 5 — RGB channel AUC comparison: R/G, R/B, G/B ────────────────────────
+print("[5/5] Fig 5: AUC comparison (R/G, R/B, G/B)...")
 
 summary = load_avg_summary()
 
 groups_b = [g for g in GROUP_ORDER if g in summary]
-means_b  = [float(summary[g]["rg_auc_mean"]) for g in groups_b]
-sds_b    = [float(summary[g]["rg_auc_sd"])   for g in groups_b]
 colors_b = ["#CC3300" if IS_POS[g] else "#4477AA" for g in groups_b]
 
-# Also get final RG ratio
-final_means = []
-final_sds   = []
-for g in groups_b:
-    row = summary[g]
-    # Use final_RG from cross_trial_summary
-    try:
-        ct_row = ct_summary.get(g, {})
-        fm = float(ct_row.get("final_RG_ratio_mean", 0))
-        fs_ = float(ct_row.get("final_RG_ratio_sd", 0))
-    except (ValueError, KeyError):
-        fm, fs_ = 0.0, 0.0
-    final_means.append(fm)
-    final_sds.append(fs_)
+rg_means = [float(summary[g]["rg_auc_mean"]) for g in groups_b]
+rg_sds   = [float(summary[g]["rg_auc_sd"])   for g in groups_b]
+rb_means = [float(summary[g]["rb_auc_mean"]) for g in groups_b]
+rb_sds   = [float(summary[g]["rb_auc_sd"])   for g in groups_b]
+gb_means = [float(summary[g]["gb_auc_mean"]) for g in groups_b]
+gb_sds   = [float(summary[g]["gb_auc_sd"])   for g in groups_b]
 
-fig, axes = plt.subplots(1, 2, figsize=(13, 5))
-fig.suptitle("Mean R/G AUC and Final R/G Ratio by Concentration Group  (Mean ± SD, N=4 trials)",
+fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+fig.suptitle("RGB Channel AUC by Concentration Group  (Mean ± SD, N = 4 trials)",
              fontsize=11, fontweight="bold")
 
-for ax, means, sds, ylabel, title, add_line in zip(
-        axes,
-        [means_b, final_means],
-        [sds_b,   final_sds],
-        ["R/G AUC  (ratio · min)", "Final normalized R/G ratio"],
-        ["R/G AUC", "Final R/G Ratio at t = 120 min"],
-        [False, True]):
+panels = [
+    (rg_means, rg_sds,
+     "R/G AUC  (ratio · min)", "R/G AUC",
+     "Kruskal-Wallis: H=17.27, p=0.027\n(no pairwise sig. after Bonferroni)", False),
+    (rb_means, rb_sds,
+     "R/B AUC  (ratio · min)", "R/B AUC  ★ Primary result",
+     "One-way ANOVA: F=8.55, p<0.001\n10⁸ sig. vs all groups (Tukey p≤0.001)", True),
+    (gb_means, gb_sds,
+     "G/B AUC  (ratio · min)", "G/B AUC  — Not Significant",
+     "Kruskal-Wallis: H=8.41, p=0.394\nG and B co-vary; ratio unresponsive", False),
+]
 
+for ax, (means, sds, ylabel, title, stat_label, is_sig) in zip(axes, panels):
     x = np.arange(len(groups_b))
     ax.bar(x, means, yerr=sds, color=colors_b, alpha=0.82,
            capsize=4, width=0.65, error_kw={"lw": 1.4, "ecolor": "#444444"})
     ax.set_xticks(x)
-    ax.set_xticklabels([GROUP_LABELS[g] for g in groups_b], fontsize=8.5)
-    ax.set_ylabel(ylabel, fontsize=10)
-    ax.set_title(title, fontsize=10)
+    ax.set_xticklabels([GROUP_LABELS[g] for g in groups_b], fontsize=8)
+    ax.set_ylabel(ylabel, fontsize=9.5)
+    ax.set_title(title, fontsize=9.5)
     ax.axvline(4.5, color="#aaaaaa", lw=0.8, ls="--")
-
-    if add_line:
-        ax.axhline(1.0, color="#aaaaaa", lw=0.8, ls=":", label="Baseline (1.0)")
-        ax.legend(fontsize=8)
-
-    ax.text(4.6, ax.get_ylim()[0], "positive →", fontsize=7.5, color="#880000", va="bottom")
-    ax.text(4.3, ax.get_ylim()[0], "← neg.", fontsize=7.5, color="#333333", va="bottom", ha="right")
+    ylo = ax.get_ylim()[0]
+    ax.text(4.6, ylo, "positive →", fontsize=7, color="#880000", va="bottom")
+    ax.text(4.3, ylo, "← neg.",     fontsize=7, color="#333333", va="bottom", ha="right")
+    # Stat annotation box (top-centre of each panel)
+    stat_color = "#b8460b" if is_sig else "#888888"
+    ax.text(0.5, 0.98, stat_label, transform=ax.transAxes,
+            ha="center", va="top", fontsize=7.5, color=stat_color,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.75, edgecolor="none"))
 
 pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
 neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
 fig.legend(handles=[pos_patch, neg_patch], loc="lower center", ncol=2,
            fontsize=9, bbox_to_anchor=(0.5, -0.01))
 fig.tight_layout(rect=[0, 0.06, 1, 0.96])
-fig.savefig(os.path.join(OUT_DIR, "fig5_rg_auc_and_final_ratio.png"), dpi=DPI, bbox_inches="tight")
+fig.savefig(os.path.join(OUT_DIR, "fig5_auc_comparison.png"), dpi=DPI, bbox_inches="tight")
 plt.close(fig)
-print("   → fig5_rg_auc_and_final_ratio.png")
+print("   → fig5_auc_comparison.png")
 
 
 # ── Summary text file ──────────────────────────────────────────────────────────
@@ -459,7 +494,8 @@ fig2_rb_auc_bars.png  ← STRONGEST STATISTICAL RESULT
   - CAVEAT: only 10^8 separates — not 10^5 or 10^6
 
 fig3_detection_heatmap.png  ← ALGORITHM COMPARISON
-  - Shows which algorithm detected which concentration in what % of trials
+  - Shows detection rate % AND mean first-detection time in each cell
+  - Cell format: "75% / t=80 min" — gives audience both sensitivity and speed
   - Likert: 100% at 10^7 and 10^8 — most consistent algorithm
   - SD: 50% false-positive rate on sterile negative — show this honestly
   - Combined (any): 100% at 10^7+ but still 50% FP on sterile negative
@@ -470,10 +506,20 @@ fig4_stats_table.png  ← RESULTS TABLE FOR BOARD
   - Shows which are significant, which aren't, and why
   - Use directly on the poster as your "Statistical Analysis" section
 
-fig5_rg_auc_and_final_ratio.png  ← SUPPLEMENTAL / DOSE-RESPONSE
-  - R/G AUC and final R/G ratio side-by-side
-  - Shows dose-response trend even where formal significance wasn't reached
-  - Good for the "Data Analysis" section of the board
+fig5_auc_comparison.png  ← AUC CHANNEL COMPARISON (3 panels)
+  - R/G AUC, R/B AUC, and G/B AUC side by side for direct comparison
+  - Each panel labelled with its test statistic and significance
+  - R/B panel labelled as primary result (★); G/B labelled as not significant
+  - WHY G/B IS INCLUDED BUT LABELLED NS: shows the audience that not every
+    channel is informative; G and B co-vary because both absorb in the same
+    spectral region during resazurin→resorufin conversion, so their ratio
+    is insensitive to the reaction. p=0.394.
+  - WHY TIME-TO-THRESHOLD IS EXCLUDED: The R/G ≥ 1.50 threshold was inflated
+    to account for unlocked auto-exposure artifacts (true biology threshold
+    ~1.10). As a result, clinical negatives 10^1 and 10^2 cross it at t=15 min
+    in Trial 1 (AE spike, not growth), and positives like 10^7 never cross it
+    in Trial 3. Kruskal-Wallis p=0.598. Metric is invalid until auto-exposure
+    is locked and threshold recalibrated to ~1.10.
 
 KEY NUMBERS TO QUOTE ON BOARD
 -------------------------------
@@ -486,8 +532,12 @@ KEY NUMBERS TO QUOTE ON BOARD
 
 WHAT NOT TO PUT ON THE BOARD
 ------------------------------
-  - G/B AUC (not significant, p=0.39)
-  - Time-to-threshold metric (invalid; inflated by auto-exposure artifacts)
+  - G/B AUC as a positive result — include it only as a labelled-NS comparison
+    (already done in fig5). Do not claim significance (p=0.394).
+  - Time-to-threshold metric — invalid; RATIO_THRESHOLD inflated to 1.50 by
+    unlocked auto-exposure artifacts. Negatives cross it at t=15 min; positives
+    miss it entirely in some trials. Kruskal-Wallis p=0.598. Recalibrate to
+    ~1.10 after locking exposure in next trial.
   - Individual per-trial SD/slope score plots (too noisy, trial-dependent)
   - Any sensitivity/specificity claim for 10^5 (missed in 3/4 trials)
 """)
