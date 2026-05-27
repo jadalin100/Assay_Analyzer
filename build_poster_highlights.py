@@ -291,10 +291,13 @@ cmap = LinearSegmentedColormap.from_list(
     [(0.0, "#dddddd"), (0.5, "#ffdd88"), (1.0, "#cc2200")]
 )
 
-fig, ax = plt.subplots(figsize=(11, 4.8))
+fig, ax = plt.subplots(figsize=(13, 6.5))
 im = ax.imshow(matrix, cmap=cmap, vmin=0, vmax=1, aspect="auto")
 
-# Cell annotations — rate % on top line, mean first-detection time below (where available)
+# Cell annotations — two separate ax.text calls per cell for precise placement.
+# In imshow data coords each cell spans ±0.5 around its row index.
+# We offset the rate line up by 0.18 and the time line down by 0.22 so
+# neither line touches the cell border or its neighbours.
 for i in range(len(algorithms)):
     for j in range(len(groups_h)):
         val  = matrix[i, j]
@@ -302,38 +305,44 @@ for i in range(len(algorithms)):
         color  = "white" if val > 0.65 else ("#333333" if val > 0.0 else "#aaaaaa")
         weight = "bold" if val == 1.0 else "normal"
         if val > 0 and not np.isnan(tval):
-            txt = f"{val*100:.0f}%\nt={tval:.0f} min"
-            fs  = 7.5
+            # Rate % slightly above cell centre
+            ax.text(j, i - 0.17, f"{val*100:.0f}%",
+                    ha="center", va="center",
+                    fontsize=9, color=color, fontweight=weight)
+            # Time below cell centre, lighter weight, smaller
+            ax.text(j, i + 0.22, f"t={tval:.0f} min",
+                    ha="center", va="center",
+                    fontsize=7, color=color, fontweight="normal", style="italic")
         else:
-            txt = f"{val*100:.0f}%"
-            fs  = 9
-        ax.text(j, i, txt, ha="center", va="center",
-                fontsize=fs, color=color, fontweight=weight, linespacing=1.3)
+            ax.text(j, i, f"{val*100:.0f}%",
+                    ha="center", va="center",
+                    fontsize=9.5, color=color, fontweight=weight)
 
 ax.set_xticks(range(len(groups_h)))
-ax.set_xticklabels([GROUP_LABELS[g] for g in groups_h], fontsize=9)
+ax.set_xticklabels([GROUP_LABELS[g] for g in groups_h], fontsize=10)
 ax.set_yticks(range(len(algorithms)))
-ax.set_yticklabels(algorithms, fontsize=9)
+ax.set_yticklabels(algorithms, fontsize=10)
 
 # Divider between negatives and positives
 ax.axvline(4.5, color="white", lw=2.5)
-ax.text(1.8, -0.8, "Clinical Negatives (<10⁵ CFU/mL)",
-        ha="center", va="top", fontsize=8, color="#444444",
-        transform=ax.transData, clip_on=False)
-ax.text(6.5, -0.8, "Clinical Positives (≥10⁵ CFU/mL)",
-        ha="center", va="top", fontsize=8, color="#880000",
-        transform=ax.transData, clip_on=False)
+# Use axes-fraction coords so the labels never collide with tick labels
+ax.text(0.265, -0.10, "← Clinical Negatives (<10⁵ CFU/mL)",
+        ha="center", va="top", fontsize=9, color="#444444",
+        transform=ax.transAxes, clip_on=False)
+ax.text(0.77, -0.10, "Clinical Positives (≥10⁵ CFU/mL) →",
+        ha="center", va="top", fontsize=9, color="#880000",
+        transform=ax.transAxes, clip_on=False)
 
 ax.set_title("Detection Rate by Algorithm and Concentration Group\n"
              "(N = 4 trials — % detected | mean first-detection time where applicable)",
-             fontsize=10, pad=10)
+             fontsize=11, pad=12)
 
-cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.02)
-cbar.set_label("Detection rate", fontsize=8)
+cbar = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.02)
+cbar.set_label("Detection rate", fontsize=9)
 cbar.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
-cbar.set_ticklabels(["0%", "25%", "50%", "75%", "100%"])
+cbar.set_ticklabels(["0%", "25%", "50%", "75%", "100%"], fontsize=9)
 
-fig.tight_layout(rect=[0, 0.06, 1, 1])
+fig.tight_layout(rect=[0, 0.08, 1, 1])
 fig.savefig(os.path.join(OUT_DIR, "fig3_detection_heatmap.png"), dpi=DPI, bbox_inches="tight")
 plt.close(fig)
 print("   → fig3_detection_heatmap.png")
