@@ -1,0 +1,53 @@
+POSTER BOARD — HIGHLIGHTS GUIDE
+================================
+Generated from 4 independent trials (N=4 per concentration group, 9 groups).
+
+FIGURE SELECTION RATIONALE
+---------------------------
+
+fig1_rg_ratio_timeseries.png  ← LEAD FIGURE
+  - Shows blue→pink resazurin conversion over 120 min by concentration
+  - Shaded bands = ±1 SD across 4 trials (shows reproducibility)
+  - High concentrations (10^7, 10^8) show clear visible separation
+  - KEY CAVEAT: 10^5 (clinical UTI threshold) does not separate cleanly
+    from negatives — state this explicitly on the board
+
+fig2_rb_auc_bars.png  ← STRONGEST STATISTICAL RESULT
+  - Only metric that meets ANOVA assumptions (normality + equal variance)
+  - One-way ANOVA: F=8.55, p<0.001 (4 sig. figures, publishable)
+  - Tukey HSD: 10^8 significantly higher than ALL other groups (p≤0.001)
+  - Use this as your primary quantitative result
+  - CAVEAT: only 10^8 separates — not 10^5 or 10^6
+
+fig3_detection_heatmap.png  ← ALGORITHM COMPARISON
+  - Shows which algorithm detected which concentration in what % of trials
+  - Likert: 100% at 10^7 and 10^8 — most consistent algorithm
+  - SD: 50% false-positive rate on sterile negative — show this honestly
+  - Combined (any): 100% at 10^7+ but still 50% FP on sterile negative
+  - Key talking point: algorithms are complementary, not redundant
+
+fig4_stats_table.png  ← RESULTS TABLE FOR BOARD
+  - All 6 cross-trial metrics in one table
+  - Shows which are significant, which aren't, and why
+  - Use directly on the poster as your "Statistical Analysis" section
+
+fig5_rg_auc_and_final_ratio.png  ← SUPPLEMENTAL / DOSE-RESPONSE
+  - R/G AUC and final R/G ratio side-by-side
+  - Shows dose-response trend even where formal significance wasn't reached
+  - Good for the "Data Analysis" section of the board
+
+KEY NUMBERS TO QUOTE ON BOARD
+-------------------------------
+  R/B AUC ANOVA:           F = 8.55,  p < 0.001
+  10^8 vs all groups:      Tukey HSD p ≤ 0.001
+  Likert detection (10^7): 100% across 4 trials
+  Likert detection (10^8): 100% across 4 trials
+  Combined detection (10^7+10^8): 100%
+  Sterile negative SD false-positive rate: 50%  ← must disclose
+
+WHAT NOT TO PUT ON THE BOARD
+------------------------------
+  - G/B AUC (not significant, p=0.39)
+  - Time-to-threshold metric (invalid; inflated by auto-exposure artifacts)
+  - Individual per-trial SD/slope score plots (too noisy, trial-dependent)
+  - Any sensitivity/specificity claim for 10^5 (missed in 3/4 trials)
