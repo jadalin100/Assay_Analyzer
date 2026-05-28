@@ -995,18 +995,18 @@ for name, key in algo_keys_ss:
                     Sensitivity=tp/(tp+fn) if (tp+fn)>0 else 0,
                     Specificity=tn/(tn+fp) if (tn+fp)>0 else 0)
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-fig.suptitle("Algorithm Sensitivity & Specificity — Averaged Across 4 Trials\n"
-             f"Positives: ≥10⁵ CFU/mL ({n_pos_total} trials)  |  "
-             f"Negatives: <10⁵ CFU/mL ({n_neg_total} trials)",
-             fontsize=11, fontweight="bold")
-
-# Grouped bar chart
 names = list(ss.keys())
 xp    = np.arange(len(names))
 w     = 0.35
 sens_vals = [ss[n]["Sensitivity"] * 100 for n in names]
 spec_vals = [ss[n]["Specificity"] * 100 for n in names]
+
+# ── Fig A-1: Sensitivity / Specificity bar chart ──────────────────────────────
+fig, ax1 = plt.subplots(figsize=(8, 5))
+fig.suptitle("Algorithm Sensitivity & Specificity — Averaged Across 4 Trials\n"
+             f"Positives: ≥10⁵ CFU/mL ({n_pos_total} trials)  |  "
+             f"Negatives: <10⁵ CFU/mL ({n_neg_total} trials)",
+             fontsize=11, fontweight="bold")
 ax1.bar(xp - w/2, sens_vals, w, label="Sensitivity (TPR)", color="#CC3300", alpha=0.85)
 ax1.bar(xp + w/2, spec_vals, w, label="Specificity (TNR)", color="#4477AA", alpha=0.85)
 ax1.set_xticks(xp)
@@ -1021,9 +1021,19 @@ for i, (sv, spv) in enumerate(zip(sens_vals, spec_vals)):
              fontsize=9, color="#CC3300", fontweight="bold")
     ax1.text(i + w/2, spv + 1.5, f"{spv:.0f}%", ha="center", va="bottom",
              fontsize=9, color="#4477AA", fontweight="bold")
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_sensitivity_bar.png"),
+            dpi=DPI, bbox_inches="tight")
+plt.close(fig)
+print("  Saved avg_sensitivity_bar.png")
 
-# Confusion matrix summary table
+# ── Fig A-2: Confusion matrix table ──────────────────────────────────────────
+fig, ax2 = plt.subplots(figsize=(9, 3.5))
 ax2.axis("off")
+fig.suptitle("Confusion Matrix Summary — Averaged Across 4 Trials\n"
+             f"Positives: ≥10⁵ CFU/mL ({n_pos_total} trials)  |  "
+             f"Negatives: <10⁵ CFU/mL ({n_neg_total} trials)  (total trial counts)",
+             fontsize=11, fontweight="bold")
 col_labels  = ["Algorithm", "TP", "FP", "FN", "TN", "Sensitivity", "Specificity"]
 cell_data   = [[n, ss[n]["TP"], ss[n]["FP"], ss[n]["FN"], ss[n]["TN"],
                 f"{ss[n]['Sensitivity']*100:.1f}%", f"{ss[n]['Specificity']*100:.1f}%"]
@@ -1031,8 +1041,8 @@ cell_data   = [[n, ss[n]["TP"], ss[n]["FP"], ss[n]["FN"], ss[n]["TN"],
 tbl = ax2.table(cellText=cell_data, colLabels=col_labels,
                 loc="center", cellLoc="center")
 tbl.auto_set_font_size(False)
-tbl.set_fontsize(10)
-tbl.scale(1, 2.2)
+tbl.set_fontsize(11)
+tbl.scale(1.1, 2.6)
 for j in range(len(col_labels)):
     tbl[(0, j)].set_facecolor("#2c3e50")
     tbl[(0, j)].set_text_props(color="white", fontweight="bold")
@@ -1041,14 +1051,11 @@ for i in range(1, len(names)+1):
     tbl[(i, 4)].set_facecolor("#d4edda")   # TN — green
     tbl[(i, 2)].set_facecolor("#f8d7da")   # FP — red
     tbl[(i, 3)].set_facecolor("#f8d7da")   # FN — red
-ax2.set_title("Confusion Matrix Summary  (total trial counts)",
-              fontsize=11, pad=16)
-
 fig.tight_layout()
-fig.savefig(os.path.join(OUT_DIR, "avg_sensitivity_specificity.png"),
+fig.savefig(os.path.join(OUT_DIR, "avg_confusion_matrix.png"),
             dpi=DPI, bbox_inches="tight")
 plt.close(fig)
-print("  Saved avg_sensitivity_specificity.png")
+print("  Saved avg_confusion_matrix.png")
 
 
 # ── B. Combined R/G + R/B + G/B ratio timeseries (3 panels) ──────────────────
@@ -1157,7 +1164,7 @@ for rows in trial_sum_rows:
                 except (ValueError, TypeError):
                     pass
 
-# Final R/G ratio = last-timepoint RG_ratio from each trial's rgb_timeseries
+# Final R/G, R/B, G/B ratios = last-timepoint values from each trial's rgb_timeseries
 for d in TRIAL_DIRS:
     rg_rows = _read_csv_skip_comments(os.path.join(d, "rgb_timeseries.csv"))
     group_last = {}
@@ -1165,14 +1172,19 @@ for d in TRIAL_DIRS:
         g = row.get("group", "").strip()
         try:
             t = float(row["time_min"])
-            v = float(row["RG_ratio"])
             if g not in group_last or t > group_last[g][0]:
-                group_last[g] = (t, v)
+                group_last[g] = (t, {
+                    "RG_ratio": float(row["RG_ratio"]),
+                    "RB_ratio": float(row["RB_ratio"]),
+                    "GB_ratio": float(row["GB_ratio"]),
+                })
         except (ValueError, TypeError, KeyError):
             pass
-    for g, (_, v) in group_last.items():
+    for g, (_, ratios) in group_last.items():
         if g in per_trial:
-            per_trial[g].setdefault("final_rg_ratio", []).append(v)
+            per_trial[g].setdefault("final_rg_ratio", []).append(ratios["RG_ratio"])
+            per_trial[g].setdefault("final_rb_ratio", []).append(ratios["RB_ratio"])
+            per_trial[g].setdefault("final_gb_ratio", []).append(ratios["GB_ratio"])
 
 xlabels_short = ["0\n(neg)", "10¹", "10²", "10³", "10⁴",
                  "10⁵*", "10⁶", "10⁷", "10⁸\n(+ctrl)"]
@@ -1251,6 +1263,50 @@ fig.savefig(os.path.join(OUT_DIR, "posthoc_significant_metrics.png"),
             dpi=DPI, bbox_inches="tight")
 plt.close(fig)
 print("  Saved posthoc_significant_metrics.png")
+
+
+# ── E. Final ratio bar charts (R/G, R/B, G/B at last timepoint) ───────────────
+print("  E: Final ratio bar charts...")
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=False)
+fig.suptitle("Final Ratio Values at t=120 min per Concentration Group\n"
+             "Mean ± 1 SD across 4 trials",
+             fontsize=12, fontweight="bold")
+
+for ax, col, label in zip(
+        axes,
+        ["final_rg_ratio", "final_rb_ratio", "final_gb_ratio"],
+        ["Final R/G Ratio", "Final R/B Ratio", "Final G/B Ratio"]):
+    groups_plot = [g for g in GROUP_ORDER]
+    means, errs, colors = [], [], []
+    for g in groups_plot:
+        vals = per_trial.get(g, {}).get(col, [])
+        means.append(np.mean(vals) if vals else 0)
+        errs.append(np.std(vals, ddof=1) if len(vals) > 1 else 0.0)
+        try:
+            gt = float(add_summary.get(g, {}).get("concentration_cfu_ml", 0)) >= UTI_POSITIVE_CFU
+        except ValueError:
+            gt = False
+        colors.append("#CC3300" if gt else "#4477AA")
+
+    x = np.arange(len(groups_plot))
+    ax.bar(x, means, yerr=errs, color=colors, alpha=0.82,
+           capsize=4, width=0.65, error_kw={"lw": 1.5, "ecolor": "#333333"})
+    ax.axhline(1.0, color="#AAAAAA", lw=0.8, ls=":", label="ratio = 1.0")
+    ax.set_xticks(x)
+    ax.set_xticklabels([g.replace(" (", "\n(") for g in groups_plot],
+                       fontsize=7, rotation=30, ha="right")
+    ax.set_ylabel(label, fontsize=9)
+    ax.set_title(label, fontsize=10)
+
+pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
+neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
+fig.legend(handles=[pos_patch, neg_patch], loc="lower center", ncol=2,
+           fontsize=9, bbox_to_anchor=(0.5, -0.02))
+fig.tight_layout(rect=[0, 0.05, 1, 1])
+fig.savefig(os.path.join(OUT_DIR, "avg_final_ratio_bars.png"), dpi=DPI)
+plt.close(fig)
+print("  Saved avg_final_ratio_bars.png")
 
 
 print(f"\n✓ Done. {len(os.listdir(OUT_DIR))} files in {OUT_DIR}")
