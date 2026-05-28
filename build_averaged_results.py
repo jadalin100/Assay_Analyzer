@@ -825,12 +825,9 @@ plt.close(fig)
 print("  Saved avg_auc_bars.png")
 
 
-# ── SD/CV algorithm score summary (2-panel) ───────────────────────────────────
-# Panel 1: sd_event_count per group (bar chart, mean ± SD across 4 trials)
-# Panel 2: sd_flag_mean over time per group (fraction of trials that fired at
-#           each timepoint — shows WHEN the algorithm fires, not just IF)
+# ── SD/CV algorithm scores — two separate figures ─────────────────────────────
 
-print("  Building SD score summary...")
+print("  Building SD score figures...")
 
 # Load per-group event counts from averaged_results_summary
 sd_summary_data = {}
@@ -855,35 +852,38 @@ for g in groups_sd:
         gt = False
     bar_colors.append("#CC3300" if gt else "#4477AA")
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-fig.suptitle("CV (SD) Algorithm Scores — Averaged Across 4 Trials",
-             fontsize=13, fontweight="bold")
-
-# ── Panel 1: event count bar chart ────────────────────────────────────────────
+# ── Fig A: event count bar chart ──────────────────────────────────────────────
+fig, ax = plt.subplots(figsize=(10, 5))
 x = np.arange(len(groups_sd))
-ax1.bar(x, event_means, yerr=event_sds, color=bar_colors, alpha=0.82,
-        capsize=5, width=0.65, error_kw={"lw": 1.5, "ecolor": "#333333"})
-ax1.set_xticks(x)
-ax1.set_xticklabels(
+ax.bar(x, event_means, yerr=event_sds, color=bar_colors, alpha=0.82,
+       capsize=5, width=0.65, error_kw={"lw": 1.5, "ecolor": "#333333"})
+ax.set_xticks(x)
+ax.set_xticklabels(
     [g.replace(" (Sterile Negative Control)", "\n(Sterile Neg.)")
       .replace(" (Positive Control)", "\n(+ctrl)") for g in groups_sd],
-    fontsize=8)
-ax1.set_ylabel("Mean SD event count ± 1 SD", fontsize=10)
-ax1.set_title("Total Detection Events per Group\n(how many times the algorithm fired)", fontsize=10)
-ax1.axvline(4.5, color="#aaaaaa", lw=0.9, ls="--")
-ax1.text(4.6, ax1.get_ylim()[1] * 0.95, "positive →", fontsize=8,
-         color="#880000", va="top")
-ax1.set_ylim(bottom=0)
-ax1.text(4.3, ax1.get_ylim()[1] * 0.95, "← neg.", fontsize=8,
-         color="#333333", va="top", ha="right")
+    fontsize=9)
+ax.set_ylabel("Mean SD event count ± 1 SD", fontsize=11)
+ax.set_title("CV (SD) Algorithm — Total Detection Events per Group\n"
+             "Mean ± 1 SD across 4 trials  (how many times the algorithm fired)",
+             fontsize=12, fontweight="bold")
+ax.axvline(4.5, color="#aaaaaa", lw=0.9, ls="--")
+ax.set_ylim(bottom=0)
+ymax = ax.get_ylim()[1]
+ax.text(4.6, ymax * 0.95, "positive →", fontsize=8, color="#880000", va="top")
+ax.text(4.3, ymax * 0.95, "← neg.",     fontsize=8, color="#333333", va="top", ha="right")
 pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
 neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
-ax1.legend(handles=[pos_patch, neg_patch], fontsize=8, loc="upper left")
+ax.legend(handles=[pos_patch, neg_patch], fontsize=9, loc="upper left")
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_sd_event_count.png"), dpi=DPI)
+plt.close(fig)
+print("  Saved avg_sd_event_count.png")
 
-# ── Panel 2: sd_flag_mean timeseries per group ────────────────────────────────
+# ── Fig B: sd_flag fire-rate timeseries ───────────────────────────────────────
 # sd_flag_mean at each timepoint = fraction of trials where algorithm fired
 # Crop to t >= 10 to skip unstable rolling-window period
 T_START = 10
+fig, ax = plt.subplots(figsize=(10, 5))
 for group in groups_ordered:
     color = PALETTE.get(group, "#888888")
     ls    = "--" if "Sterile" in group or "Positive" in group else "-"
@@ -897,27 +897,27 @@ for group in groups_ordered:
         s_arr = s_arr[mask]
     if len(t_arr) == 0:
         continue
-    ax2.plot(t_arr, m_arr * 100, color=color, linestyle=ls,
-             linewidth=1.6, label=group)
+    ax.plot(t_arr, m_arr * 100, color=color, linestyle=ls,
+            linewidth=1.6, label=group)
     if s_arr is not None:
-        ax2.fill_between(t_arr,
-                         np.clip(m_arr * 100 - s_arr * 100, 0, 100),
-                         np.clip(m_arr * 100 + s_arr * 100, 0, 100),
-                         color=color, alpha=ALPHA_BAND)
+        ax.fill_between(t_arr,
+                        np.clip(m_arr * 100 - s_arr * 100, 0, 100),
+                        np.clip(m_arr * 100 + s_arr * 100, 0, 100),
+                        color=color, alpha=ALPHA_BAND)
 
-ax2.set_xlabel("Time (min)", fontsize=11)
-ax2.set_ylabel("Trials firing at timepoint (%)", fontsize=10)
-ax2.set_title("CV Algorithm Fire Rate Over Time\n"
-              "(% of 4 trials where sd_flag = True, t ≥ 10 min)", fontsize=10)
-ax2.set_xlim(T_START, 120)
-ax2.set_ylim(-5, 110)
-ax2.axhline(50, color="#888888", lw=0.7, ls=":", label="50% (2/4 trials)")
-ax2.legend(fontsize=7, ncol=2, loc="upper left")
-
+ax.set_xlabel("Time (min)", fontsize=11)
+ax.set_ylabel("Trials firing at timepoint (%)", fontsize=11)
+ax.set_title("CV (SD) Algorithm — Fire Rate Over Time\n"
+             "% of 4 trials where sd_flag = True at each timepoint  (t ≥ 10 min)",
+             fontsize=12, fontweight="bold")
+ax.set_xlim(T_START, 120)
+ax.set_ylim(-5, 110)
+ax.axhline(50, color="#888888", lw=0.7, ls=":", label="50%  (2 / 4 trials)")
+ax.legend(fontsize=7, ncol=2, loc="upper left")
 fig.tight_layout()
-fig.savefig(os.path.join(OUT_DIR, "avg_sd_scores.png"), dpi=DPI)
+fig.savefig(os.path.join(OUT_DIR, "avg_sd_fire_rate.png"), dpi=DPI)
 plt.close(fig)
-print("  Saved avg_sd_scores.png")
+print("  Saved avg_sd_fire_rate.png")
 
 
 print(f"\n✓ Done. {len(os.listdir(OUT_DIR))} files in {OUT_DIR}")
