@@ -617,6 +617,8 @@ _cv_plot(sd_pool, "cv_RG", "Mean CV (R/G) ± 1 SD",
          "Averaged SD CV — R/G channel — All 4 Trials", "avg_sd_cv_rg.png")
 _cv_plot(sd_pool, "cv_RB", "Mean CV (R/B) ± 1 SD",
          "Averaged SD CV — R/B channel — All 4 Trials", "avg_sd_cv_rb.png")
+_cv_plot(sd_pool, "cv_GB", "Mean CV (G/B) ± 1 SD",
+         "Averaged SD CV — G/B channel — All 4 Trials", "avg_sd_cv_gb.png")
 
 
 # ── Slope score plot ──────────────────────────────────────────────────────────
