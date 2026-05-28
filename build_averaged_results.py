@@ -950,4 +950,307 @@ plt.close(fig)
 print("  Saved avg_sd_fire_rate.png")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SECTION 8 — Sensitivity/Specificity, Ratio Combined, Total Score Bars,
+#              Post-hoc Box Plots
+# ══════════════════════════════════════════════════════════════════════════════
+print("\n[8] Additional figures...")
+
+# Re-load averaged CSVs needed below
+add_summary = {}
+with open(os.path.join(OUT_DIR, "averaged_results_summary.csv"), newline="") as f:
+    for row in csv.DictReader(f):
+        add_summary[row["group"].strip()] = row
+
+add_det = {}
+with open(os.path.join(OUT_DIR, "averaged_detection_summary.csv"), newline="") as f:
+    for row in csv.DictReader(f):
+        add_det[row["group"].strip()] = row
+
+def _n(g):
+    return int(add_det.get(g, {}).get("N_trials", 4) or 4)
+
+
+# ── A. Sensitivity / Specificity + Confusion table ────────────────────────────
+print("  A: Sensitivity / Specificity...")
+
+pos_g = [g for g in GROUP_ORDER
+         if float(add_det.get(g,{}).get("concentration_cfu_ml",0) or 0) >= UTI_POSITIVE_CFU]
+neg_g = [g for g in GROUP_ORDER
+         if float(add_det.get(g,{}).get("concentration_cfu_ml",0) or 0) <  UTI_POSITIVE_CFU]
+n_pos_total = sum(_n(g) for g in pos_g)
+n_neg_total = sum(_n(g) for g in neg_g)
+
+algo_keys_ss = [("SD",       "sd_detection_rate"),
+                ("Slope",    "slope_detection_rate"),
+                ("Likert",   "likert_detection_rate"),
+                ("Combined", "combined_detection_rate")]
+ss = {}
+for name, key in algo_keys_ss:
+    tp = sum(float(add_det.get(g,{}).get(key,0) or 0) * _n(g) for g in pos_g)
+    fp = sum(float(add_det.get(g,{}).get(key,0) or 0) * _n(g) for g in neg_g)
+    fn = n_pos_total - tp
+    tn = n_neg_total - fp
+    ss[name] = dict(TP=round(tp), FP=round(fp), TN=round(tn), FN=round(fn),
+                    Sensitivity=tp/(tp+fn) if (tp+fn)>0 else 0,
+                    Specificity=tn/(tn+fp) if (tn+fp)>0 else 0)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+fig.suptitle("Algorithm Sensitivity & Specificity — Averaged Across 4 Trials\n"
+             f"Positives: ≥10⁵ CFU/mL ({n_pos_total} trials)  |  "
+             f"Negatives: <10⁵ CFU/mL ({n_neg_total} trials)",
+             fontsize=11, fontweight="bold")
+
+# Grouped bar chart
+names = list(ss.keys())
+xp    = np.arange(len(names))
+w     = 0.35
+sens_vals = [ss[n]["Sensitivity"] * 100 for n in names]
+spec_vals = [ss[n]["Specificity"] * 100 for n in names]
+ax1.bar(xp - w/2, sens_vals, w, label="Sensitivity (TPR)", color="#CC3300", alpha=0.85)
+ax1.bar(xp + w/2, spec_vals, w, label="Specificity (TNR)", color="#4477AA", alpha=0.85)
+ax1.set_xticks(xp)
+ax1.set_xticklabels(names, fontsize=11)
+ax1.set_ylim(0, 118)
+ax1.set_ylabel("Percentage (%)", fontsize=11)
+ax1.set_title("Sensitivity vs Specificity per Algorithm", fontsize=11)
+ax1.axhline(100, color="#888888", lw=0.5, ls=":")
+ax1.legend(fontsize=9)
+for i, (sv, spv) in enumerate(zip(sens_vals, spec_vals)):
+    ax1.text(i - w/2, sv + 1.5, f"{sv:.0f}%", ha="center", va="bottom",
+             fontsize=9, color="#CC3300", fontweight="bold")
+    ax1.text(i + w/2, spv + 1.5, f"{spv:.0f}%", ha="center", va="bottom",
+             fontsize=9, color="#4477AA", fontweight="bold")
+
+# Confusion matrix summary table
+ax2.axis("off")
+col_labels  = ["Algorithm", "TP", "FP", "FN", "TN", "Sensitivity", "Specificity"]
+cell_data   = [[n, ss[n]["TP"], ss[n]["FP"], ss[n]["FN"], ss[n]["TN"],
+                f"{ss[n]['Sensitivity']*100:.1f}%", f"{ss[n]['Specificity']*100:.1f}%"]
+               for n in names]
+tbl = ax2.table(cellText=cell_data, colLabels=col_labels,
+                loc="center", cellLoc="center")
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(10)
+tbl.scale(1, 2.2)
+for j in range(len(col_labels)):
+    tbl[(0, j)].set_facecolor("#2c3e50")
+    tbl[(0, j)].set_text_props(color="white", fontweight="bold")
+for i in range(1, len(names)+1):
+    tbl[(i, 1)].set_facecolor("#d4edda")   # TP — green
+    tbl[(i, 4)].set_facecolor("#d4edda")   # TN — green
+    tbl[(i, 2)].set_facecolor("#f8d7da")   # FP — red
+    tbl[(i, 3)].set_facecolor("#f8d7da")   # FN — red
+ax2.set_title("Confusion Matrix Summary  (total trial counts)",
+              fontsize=11, pad=16)
+
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_sensitivity_specificity.png"),
+            dpi=DPI, bbox_inches="tight")
+plt.close(fig)
+print("  Saved avg_sensitivity_specificity.png")
+
+
+# ── B. Combined R/G + R/B + G/B ratio timeseries (3 panels) ──────────────────
+print("  B: Combined ratio timeseries...")
+
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+fig.suptitle("Averaged R/G, R/B, G/B Ratio Timeseries — All 4 Trials  (Mean ± 1 SD)",
+             fontsize=12, fontweight="bold")
+
+for ax, ratio_col, ylabel, thresh in zip(
+        axes,
+        ["RG_ratio", "RB_ratio", "GB_ratio"],
+        ["Mean R/G ratio ± 1 SD", "Mean R/B ratio ± 1 SD", "Mean G/B ratio ± 1 SD"],
+        [1.5, None, None]):
+    for group in groups_ordered:
+        color = PALETTE.get(group, "#888888")
+        ls = "--" if "Sterile" in group or "Positive" in group else "-"
+        t_arr, m_arr, s_arr = _extract_series(rgb_pool, group, None,
+                                               "time_min", ratio_col, ratio_col)
+        if len(t_arr) == 0:
+            continue
+        ax.plot(t_arr, m_arr, color=color, linestyle=ls,
+                linewidth=1.4, label=group)
+        if s_arr is not None:
+            ax.fill_between(t_arr, m_arr - s_arr, m_arr + s_arr,
+                            color=color, alpha=ALPHA_BAND)
+    if thresh:
+        ax.axhline(thresh, color="#CC0000", lw=0.9, ls="--",
+                   label=f"threshold = {thresh}")
+    ax.axhline(1.0, color="#AAAAAA", lw=0.7, ls=":")
+    ax.set_xlabel("Time (min)", fontsize=10)
+    ax.set_ylabel(ylabel, fontsize=10)
+    ax.set_title(ratio_col.replace("_ratio", " Ratio"), fontsize=11)
+    ax.set_xlim(0, 120)
+    ax.legend(fontsize=6, ncol=2, loc="upper left")
+
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_ratio_combined.png"), dpi=DPI)
+plt.close(fig)
+print("  Saved avg_ratio_combined.png")
+
+
+# ── C. Total detection score bar chart ────────────────────────────────────────
+print("  C: Total detection score bar chart...")
+
+groups_tds  = [g for g in GROUP_ORDER if g in add_summary]
+tds_means   = []
+tds_sds     = []
+tds_colors  = []
+for g in groups_tds:
+    try:
+        tds_means.append(float(add_summary[g].get("total_detection_score_mean") or 0))
+        tds_sds.append(float(add_summary[g].get("total_detection_score_sd") or 0))
+    except ValueError:
+        tds_means.append(0.0); tds_sds.append(0.0)
+    try:
+        gt = float(add_summary[g].get("concentration_cfu_ml", 0)) >= UTI_POSITIVE_CFU
+    except ValueError:
+        gt = False
+    tds_colors.append("#CC3300" if gt else "#4477AA")
+
+fig, ax = plt.subplots(figsize=(10, 5))
+x = np.arange(len(groups_tds))
+ax.bar(x, tds_means, yerr=tds_sds, color=tds_colors, alpha=0.82,
+       capsize=5, width=0.65, error_kw={"lw": 1.5, "ecolor": "#333333"})
+ax.set_xticks(x)
+ax.set_xticklabels(
+    [g.replace(" (Sterile Negative Control)", "\n(Sterile Neg.)")
+      .replace(" (Positive Control)", "\n(+ctrl)") for g in groups_tds],
+    fontsize=9)
+ax.set_ylabel("Mean Total Detection Score ± 1 SD", fontsize=11)
+ax.set_title("Total Detection Score per Concentration Group\n"
+             "Mean ± 1 SD across 4 trials  —  Kruskal-Wallis H=17.60, p=0.024",
+             fontsize=12, fontweight="bold")
+ax.axvline(4.5, color="#aaaaaa", lw=0.9, ls="--")
+ax.set_ylim(bottom=0)
+ymax = ax.get_ylim()[1]
+ax.text(4.6, ymax*0.95, "positive →", fontsize=8, color="#880000", va="top")
+ax.text(4.3, ymax*0.95, "← neg.",     fontsize=8, color="#333333", va="top", ha="right")
+pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
+neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
+ax.legend(handles=[pos_patch, neg_patch], fontsize=9, loc="upper left")
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_total_score_bars.png"), dpi=DPI)
+plt.close(fig)
+print("  Saved avg_total_score_bars.png")
+
+
+# ── D. Post-hoc box plots — 4 significant metrics ─────────────────────────────
+print("  D: Post-hoc box plots...")
+
+# Per-trial values from each trial's SECTION 2
+trial_sum_rows = [
+    _read_csv_section(os.path.join(d, "total_detection_score.csv"), "SECTION 2")
+    for d in TRIAL_DIRS
+]
+per_trial = {g: {"rb_auc": [], "rg_auc": [], "total_detection_score": []}
+             for g in GROUP_ORDER}
+for rows in trial_sum_rows:
+    for row in rows:
+        g = row.get("group", "").strip()
+        if g in per_trial:
+            for col in ["rb_auc", "rg_auc", "total_detection_score"]:
+                try:
+                    per_trial[g][col].append(float(row.get(col) or 0))
+                except (ValueError, TypeError):
+                    pass
+
+# Final R/G ratio = last-timepoint RG_ratio from each trial's rgb_timeseries
+for d in TRIAL_DIRS:
+    rg_rows = _read_csv_skip_comments(os.path.join(d, "rgb_timeseries.csv"))
+    group_last = {}
+    for row in rg_rows:
+        g = row.get("group", "").strip()
+        try:
+            t = float(row["time_min"])
+            v = float(row["RG_ratio"])
+            if g not in group_last or t > group_last[g][0]:
+                group_last[g] = (t, v)
+        except (ValueError, TypeError, KeyError):
+            pass
+    for g, (_, v) in group_last.items():
+        if g in per_trial:
+            per_trial[g].setdefault("final_rg_ratio", []).append(v)
+
+xlabels_short = ["0\n(neg)", "10¹", "10²", "10³", "10⁴",
+                 "10⁵*", "10⁶", "10⁷", "10⁸\n(+ctrl)"]
+box_colors = ["#CC3300" if float(add_summary.get(g,{}).get("concentration_cfu_ml",0) or 0)
+              >= UTI_POSITIVE_CFU else "#4477AA" for g in GROUP_ORDER]
+
+metrics_ph = [
+    ("rb_auc",             "R/B AUC (ratio·min)",   "R/B AUC  ★",
+     "One-way ANOVA: F=8.55, p<0.001\n10⁸ sig. vs all groups (Tukey p≤0.001)", True),
+    ("rg_auc",             "R/G AUC (ratio·min)",   "R/G AUC",
+     "Kruskal-Wallis: H=17.27, p=0.027\n(no pairwise sig. after Bonferroni)", False),
+    ("total_detection_score","Total Detection Score","Total Detection Score",
+     "Kruskal-Wallis: H=17.60, p=0.024\n(no pairwise sig. after Bonferroni)", False),
+    ("final_rg_ratio",     "Final R/G ratio",        "Final R/G Ratio at t=120 min",
+     "Kruskal-Wallis: H=18.91, p=0.015\n(no pairwise sig. after Bonferroni)", False),
+]
+
+fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+fig.suptitle("Post-hoc Analysis — All Statistically Significant Metrics\n"
+             "Box plots with individual trial values (N=4 per group)",
+             fontsize=13, fontweight="bold")
+
+rng = np.random.default_rng(42)
+for ax, (col, ylabel, title, stat_label, has_tukey) in zip(axes.flat, metrics_ph):
+    data = [per_trial[g].get(col, []) for g in GROUP_ORDER]
+
+    bp = ax.boxplot(data, patch_artist=True,
+                    medianprops={"color": "black", "lw": 2.0},
+                    whiskerprops={"lw": 1.2}, capprops={"lw": 1.2},
+                    flierprops={"marker": "o", "markersize": 4, "alpha": 0.5})
+    for patch, color in zip(bp["boxes"], box_colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.65)
+
+    # Individual trial dots with jitter
+    for i, (vals, color) in enumerate(zip(data, box_colors)):
+        jitter = rng.uniform(-0.16, 0.16, len(vals))
+        ax.scatter(np.full(len(vals), i + 1) + jitter, vals,
+                   color=color, zorder=4, s=28, alpha=0.9,
+                   edgecolors="white", linewidths=0.4)
+
+    # Tukey brackets for R/B AUC: 10^8 vs every other group
+    if has_tukey and data:
+        all_vals = [v for d in data for v in d]
+        ymax_data = max(all_vals) if all_vals else 1
+        idx_8 = len(GROUP_ORDER)   # 1-based index of last group
+        step  = ymax_data * 0.055
+        base  = ymax_data * 1.06
+        for i in range(len(GROUP_ORDER) - 1):
+            bh = base + (len(GROUP_ORDER) - 2 - i) * step
+            ax.plot([i+1, i+1, idx_8, idx_8],
+                    [bh - step*0.4, bh, bh, bh - step*0.4],
+                    lw=0.7, color="#333333")
+            ax.text((i + 1 + idx_8) / 2, bh + step*0.05, "*",
+                    ha="center", va="bottom", fontsize=8, color="#333333")
+
+    ax.axvline(4.5, color="#aaaaaa", lw=0.8, ls="--")
+    ax.set_xticks(range(1, len(GROUP_ORDER)+1))
+    ax.set_xticklabels(xlabels_short, fontsize=8.5)
+    ax.set_ylabel(ylabel, fontsize=10)
+    ax.set_title(title, fontsize=11)
+    stat_color = "#b8460b" if has_tukey else "#555555"
+    ax.text(0.5, 0.985, stat_label, transform=ax.transAxes,
+            ha="center", va="top", fontsize=8, color=stat_color,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                      alpha=0.80, edgecolor="none"))
+
+pos_patch = mpatches.Patch(color="#CC3300", alpha=0.7,
+                           label="Clinical positive (≥10⁵ CFU/mL)")
+neg_patch = mpatches.Patch(color="#4477AA", alpha=0.7,
+                           label="Clinical negative (<10⁵ CFU/mL)")
+fig.legend(handles=[pos_patch, neg_patch], loc="lower center", ncol=2,
+           fontsize=10, bbox_to_anchor=(0.5, 0.0))
+fig.tight_layout(rect=[0, 0.04, 1, 0.96])
+fig.savefig(os.path.join(OUT_DIR, "posthoc_significant_metrics.png"),
+            dpi=DPI, bbox_inches="tight")
+plt.close(fig)
+print("  Saved posthoc_significant_metrics.png")
+
+
 print(f"\n✓ Done. {len(os.listdir(OUT_DIR))} files in {OUT_DIR}")
