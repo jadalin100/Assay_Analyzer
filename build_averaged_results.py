@@ -588,8 +588,17 @@ _ratio_plot(rgb_pool, "GB_ratio", "Mean normalized G/B ratio ± 1 SD",
 
 
 # ── SD CV plot ─────────────────────────────────────────────────────────────────
-def _cv_plot(pool, cv_col, ylabel, title, fname):
+def _cv_plot(pool, cv_col, ylabel, title, fname, t_start=10):
+    """
+    t_start : skip timepoints below this value (minutes).
+              Avoids the rolling-window startup spike in the first ~10 min
+              where CV = SD/mean is unstable with very few window samples.
+    Y-axis  : auto-zoomed to 98th-percentile of post-t_start means × 1.35,
+              with a floor that always shows both threshold lines.
+    """
     fig, ax = plt.subplots(figsize=(10, 5))
+    all_post_means = []
+
     for group in groups_ordered:
         color = PALETTE.get(group, "#888888")
         ls = "--" if "Sterile" in group or "Positive" in group else "-"
@@ -597,17 +606,32 @@ def _cv_plot(pool, cv_col, ylabel, title, fname):
                                                cv_col, cv_col)
         if len(t_arr) == 0:
             continue
+        # Crop to t >= t_start
+        mask = t_arr >= t_start
+        t_arr, m_arr = t_arr[mask], m_arr[mask]
+        if s_arr is not None:
+            s_arr = s_arr[mask]
+        if len(t_arr) == 0:
+            continue
         ax.plot(t_arr, m_arr, color=color, linestyle=ls, linewidth=1.6, label=group)
         if s_arr is not None:
             ax.fill_between(t_arr, m_arr - s_arr, m_arr + s_arr,
                             color=color, alpha=ALPHA_BAND)
+        all_post_means.extend(m_arr.tolist())
+
+    # Auto-zoom: ceiling = 98th percentile × 1.35, at minimum shows thr_two + 20%
+    if all_post_means:
+        p98 = np.percentile(all_post_means, 98)
+        y_top = max(p98 * 1.35, 0.080 * 1.4)
+        ax.set_ylim(bottom=0, top=round(y_top, 3))
+
     ax.axhline(0.040, color="#CC4400", linewidth=0.9, linestyle="--", label="thr_all = 0.040")
     ax.axhline(0.080, color="#880000", linewidth=0.9, linestyle=":",  label="thr_two = 0.080")
     ax.set_xlabel("Time (min)", fontsize=11)
     ax.set_ylabel(ylabel, fontsize=11)
-    ax.set_title(title, fontsize=13, fontweight="bold")
+    ax.set_title(title + f"  (t ≥ {t_start} min)", fontsize=13, fontweight="bold")
     ax.legend(fontsize=7, ncol=2, loc="upper left")
-    ax.set_xlim(0, 120)
+    ax.set_xlim(t_start, 120)
     fig.tight_layout()
     fig.savefig(os.path.join(OUT_DIR, fname), dpi=DPI)
     plt.close(fig)
