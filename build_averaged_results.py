@@ -645,6 +645,36 @@ _cv_plot(sd_pool, "cv_GB", "Mean CV (G/B) ± 1 SD",
          "Averaged SD CV — G/B channel — All 4 Trials", "avg_sd_cv_gb.png")
 
 
+# ── SD (CV) scores — same style as slope / likert ─────────────────────────────
+# Mean CV(R/G) ± 1 SD over full 0-120 min, one line per group.
+# Threshold lines at thr_all=0.040 / thr_two=0.080 mirror the slope threshold.
+fig, ax = plt.subplots(figsize=(10, 5))
+for group in groups_ordered:
+    color = PALETTE.get(group, "#888888")
+    ls = "--" if "Sterile" in group or "Positive" in group else "-"
+    t_arr, m_arr, s_arr = _extract_series(sd_pool, group, None, "time_min",
+                                           "cv_RG", "cv_RG")
+    if len(t_arr) == 0:
+        continue
+    ax.plot(t_arr, m_arr, color=color, linestyle=ls, linewidth=1.6, label=group)
+    if s_arr is not None:
+        ax.fill_between(t_arr, m_arr - s_arr, m_arr + s_arr,
+                        color=color, alpha=ALPHA_BAND)
+ax.axhline(0.040, color="#CC4400", linewidth=0.9, linestyle="--", label="thr_all = 0.040")
+ax.axhline(0.080, color="#880000", linewidth=0.9, linestyle=":",  label="thr_two = 0.080")
+ax.set_xlabel("Time (min)", fontsize=11)
+ax.set_ylabel("Mean CV (R/G ratio) ± 1 SD", fontsize=11)
+ax.set_title("Averaged SD (CV) Scores — R/G Channel — All 4 Trials",
+             fontsize=13, fontweight="bold")
+ax.legend(fontsize=7, ncol=2, loc="upper left")
+ax.set_xlim(0, 120)
+ax.set_ylim(bottom=0)
+fig.tight_layout()
+fig.savefig(os.path.join(OUT_DIR, "avg_sd_scores.png"), dpi=DPI)
+plt.close(fig)
+print("  Saved avg_sd_scores.png")
+
+
 # ── Slope score plot ──────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(10, 5))
 for group in groups_ordered:
