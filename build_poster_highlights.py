@@ -455,7 +455,6 @@ for ax, (means, sds, ylabel, title, stat_label, is_sig) in zip(axes, panels):
     ax.set_xticks(x)
     ax.set_xticklabels([GROUP_LABELS[g] for g in groups_b], fontsize=8)
     ax.set_ylabel(ylabel, fontsize=9.5)
-    ax.set_title(title, fontsize=9.5)
     ax.axvline(4.5, color="#aaaaaa", lw=0.8, ls="--")
     ylo = ax.get_ylim()[0]
     ax.text(4.6, ylo, "positive →", fontsize=7, color="#880000", va="bottom")
