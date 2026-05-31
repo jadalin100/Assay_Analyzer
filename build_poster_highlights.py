@@ -435,8 +435,6 @@ gb_means = [float(summary[g]["gb_auc_mean"]) for g in groups_b]
 gb_sds   = [float(summary[g]["gb_auc_sd"])   for g in groups_b]
 
 fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-fig.suptitle("RGB Channel AUC by Concentration Group  (Mean ± SD, N = 4 trials)",
-             fontsize=11, fontweight="bold")
 
 panels = [
     (rg_means, rg_sds,
@@ -462,17 +460,12 @@ for ax, (means, sds, ylabel, title, stat_label, is_sig) in zip(axes, panels):
     ylo = ax.get_ylim()[0]
     ax.text(4.6, ylo, "positive →", fontsize=7, color="#880000", va="bottom")
     ax.text(4.3, ylo, "← neg.",     fontsize=7, color="#333333", va="bottom", ha="right")
-    # Stat annotation box (top-centre of each panel)
-    stat_color = "#b8460b" if is_sig else "#888888"
-    ax.text(0.5, 0.98, stat_label, transform=ax.transAxes,
-            ha="center", va="top", fontsize=7.5, color=stat_color,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.75, edgecolor="none"))
 
 pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
 neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
 fig.legend(handles=[pos_patch, neg_patch], loc="lower center", ncol=2,
            fontsize=9, bbox_to_anchor=(0.5, -0.01))
-fig.tight_layout(rect=[0, 0.06, 1, 0.96])
+fig.tight_layout(rect=[0, 0.06, 1, 1])
 fig.savefig(os.path.join(OUT_DIR, "fig5_auc_comparison.png"), dpi=DPI, bbox_inches="tight")
 plt.close(fig)
 print("   → fig5_auc_comparison.png")

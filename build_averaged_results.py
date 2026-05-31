@@ -1294,8 +1294,14 @@ for ax, col, label in zip(
            capsize=4, width=0.65, error_kw={"lw": 1.5, "ecolor": "#333333"})
     ax.axhline(1.0, color="#AAAAAA", lw=0.8, ls=":", label="ratio = 1.0")
     ax.set_xticks(x)
-    ax.set_xticklabels([g.replace(" (", "\n(") for g in groups_plot],
-                       fontsize=7, rotation=30, ha="right")
+    _short = {
+        "0 (Sterile Negative Control)": "Sterile\nNeg.",
+        "10^1": "10¹", "10^2": "10²", "10^3": "10³", "10^4": "10⁴",
+        "10^5": "10⁵*", "10^6": "10⁶", "10^7": "10⁷",
+        "10^8 (Positive Control)": "10⁸\n(+ctrl)",
+    }
+    ax.set_xticklabels([_short.get(g, g) for g in groups_plot],
+                       fontsize=8, rotation=0, ha="center")
     ax.set_ylabel(label, fontsize=9)
     ax.set_title(label, fontsize=10)
 
