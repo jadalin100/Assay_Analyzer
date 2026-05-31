@@ -106,15 +106,7 @@ R/G AUC — Dunn's test + Bonferroni (36 pairs tested):
   → Same interpretation as Final R/G — overall group effect (p=0.027)
     but Bonferroni too conservative to isolate pairs at N=4
 
-G/B AUC — No post-hoc run:
-  Overall Kruskal-Wallis H=8.41, p=0.394 — NOT significant
-  → Post-hoc pairwise tests are not appropriate when the omnibus test
-    fails; running them anyway inflates Type I error
-  → G and B channels co-vary during resazurin→resorufin conversion;
-    their ratio is unresponsive to concentration across the full timeseries
-  → Note: Final G/B (endpoint value at t=120 min) IS significant (p=0.011)
-    even though cumulative G/B AUC is not — the divergence only emerges
-    late in the reaction, so it is washed out by the AUC integration
+G/B AUC — Kruskal-Wallis: H = 8.414, p = 0.394 — NOT significant. No post-hoc run.
 
 KEY NUMBERS TO QUOTE ON BOARD
 -------------------------------
