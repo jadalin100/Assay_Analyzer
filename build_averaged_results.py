@@ -1302,8 +1302,6 @@ for ax, col, label in zip(
     }
     ax.set_xticklabels([_short.get(g, g) for g in groups_plot],
                        fontsize=8, rotation=0, ha="center")
-    ax.set_ylabel(label, fontsize=9)
-    ax.set_title(label, fontsize=10)
 
 pos_patch = mpatches.Patch(color="#CC3300", label="Clinical positive (≥10⁵ CFU/mL)")
 neg_patch = mpatches.Patch(color="#4477AA", label="Clinical negative (<10⁵ CFU/mL)")
