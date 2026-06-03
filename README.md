@@ -218,18 +218,6 @@ A continuous variable that captures sustained evidence of color conversion from 
 
 With four trials completed, each concentration group has N=4 independent replicates — enough for group-level statistical testing. `cross_trial_stats.py` pools all trials and applies the same normality-adaptive test selection as `stats.py`: Shapiro-Wilk per group, Levene's test for equal variances, then one-way ANOVA if both pass or Kruskal-Wallis otherwise.
 
-**Results across trials 1–4 (N=4 per group, 9 concentration groups):**
-
-| Metric | Test | Statistic | p-value | Significant |
-|---|---|---|---|---|
-| Total detection score | Kruskal-Wallis | H = 17.60 | 0.025 | ✓ |
-| R/G AUC | Kruskal-Wallis | H = 17.27 | 0.027 | ✓ |
-| R/B AUC | One-way ANOVA | F = 8.55 | < 0.001 | ✓ |
-| G/B AUC | Kruskal-Wallis | H = 8.41 | 0.394 | ✗ |
-| Time to R/G ≥ 1.50 | Kruskal-Wallis | H = 3.67 | 0.598 | ✗ |
-| Final R/G ratio | Kruskal-Wallis | H = 18.91 | 0.015 | ✓ |
-
-R/B AUC (the only metric meeting normality and equal-variance assumptions) was analyzed by one-way ANOVA. Tukey HSD post-hoc showed 10⁸ significantly higher than all other groups (p ≤ 0.001). Kruskal-Wallis was used for the remaining metrics due to Shapiro-Wilk or Levene violations in one or more groups with N=4. G/B AUC was not significant, consistent with G and B falling together during conversion and producing a relatively stable ratio.
 
 ## References
 
